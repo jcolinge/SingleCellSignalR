@@ -14,8 +14,8 @@
 #' `limit` is the maximum number of interactions displayed on one chord
 #' diagram. Raising this limit over 30 may decrease the visibility.
 #'
-#' @param signal a list of data frames result of the **cell_signaling()**
-#' function
+#' @param obj a SCSRInteraction object
+#' @param dm a SCSRDataModel object
 #' @param show.in a vector of which elements of ```signal``` must be shown
 #' @param write.in a vector of which elements of ```signal``` must be written
 #' @param write.out a logical
@@ -41,25 +41,37 @@
 #' @importFrom graphics text
 #'
 #' @examples
-#' int.1 <- matrix(c("gene 1","gene 1", "gene 2", "gene 3"),ncol=2)
-#' colnames(int.1) <- c("cluster 1","cluster 2" )
-#' int.2 <- matrix(c("gene 1","gene 4","gene 4","gene 2","gene 3","gene 3"),
-#' ncol=2)
-#' colnames(int.2) <- c("cluster 1","cluster 3" )
-#' signal <- list(int.1,int.2)
-#' names(signal) <- c("1-2","1-3")
-#' visualize_interactions(signal)
-visualize_interactions <- function(signal,show.in=NULL,write.in=NULL,write.out=FALSE,
+#' print("dataPrepare")
+#' data <- matrix(runif(1000,0,1),nrow=50,ncol=20)
+#' rownames(data) <- paste("gene",seq_len(50))
+#' obj <- dataPrepare(data)
+#' print("cell Clustering")
+#' obj <- cellClustering(obj)
+#' print("cell Signaling")
+#' obj.int <- cellSignaling(obj,int.type = "paracrine")
+#' cellSignaling(visualize_interactions,obj.int, obj)
+
+visualize_interactions <- function(obj, dm,show.in=NULL,write.in=NULL,write.out=FALSE,
                      method="default",limit=30){
+  if (!is(dm, "SCSRDataModel")){
+        stop("dm must be a SCSRDataModel object")
+    }
+    if (!is(obj, "SCSRInteraction")){
+        stop("obj must be a SCSRInteraction object")
+    }
+  c.names <- dm@cluster$names
+  signal <- obj@LRinter
   options(warn=-1)
   if (dir.exists("images")==FALSE & (is.null(write.in)==FALSE |
                                      write.out==TRUE)){
     dir.create("images")
   }
-  c.names <- NULL
-  for (i in seq_len(length(signal))){
-    c.names=c(c.names,colnames(signal[[i]])[seq_len(2)])
+  if (is.null(c.names)){
+    for (i in seq_len(length(signal))){
+      c.names=c(c.names,colnames(signal[[i]])[seq_len(2)])
+    }
   }
+  
   c.names <- unique(c.names)
   cols <- c(rainbow(length(c.names)))
   names(cols) <- c.names

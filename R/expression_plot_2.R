@@ -4,23 +4,40 @@
 #' @details This function can be used independantly from any other. It displays
 #' the expression level of two genes of interest on a 2D projection.
 #' @details
-#' `name.1` and `name.2` can be any characters that correspond to a row name of `data`.
+#' `name.1` and `name.2` can be any characters that correspond to a row name of the count
+#' matrix present in the object.
 #'
-#' @param data a data frame of n rows (genes) and m columns (cells) of read or UMI counts (note : rownames(data)=genes)
+#' @param obj an SCSRDataModel object
 #' @param name.1 the identifier of the first gene of interest
 #' @param name.2 the identifier of the second gene of interest
-#' @param tsne a table of n rows and 2 columns with t-SNE projection coordinates for each cell
+#' @param most.variables a logical
 #'
 #' @return The function returns a R plot.
 #' @export
 #'
 #' @examples
-#' data <- matrix(runif(100,0,1),nrow=2,ncol=50)
-#' rownames(data) <- c("gene 1", "gene 2")
-#' tsne <- matrix(runif(100,-1,1),ncol=2)
-#' expression_plot_2(data,"gene 1","gene 2",tsne)
+#' print("dataPrepare")
+#' data <- matrix(runif(1000,0,1),nrow=50,ncol=20)
+#' rownames(data) <- paste("gene",seq_len(50))
+#' obj <- dataPrepare(data)
+#' print("cell Clustering")
+#' obj <- cellClustering(obj)
+#' expression_plot(obj, "gene 20", "gene 2")
 #'
-expression_plot_2 <- function(data,name.1,name.2,tsne){
+expression_plot_2 <- function(obj,name.1,name.2,most.variables=TRUE){
+  if (!is(obj, "SCSRDataModel")){
+        stop("obj must be a SCSRDataModel object")
+    }
+
+  data <- obj@ncounts$matrix
+  tsne <- obj@cluster$tsne
+
+  if (!is.null(obj@ncounts$matrix.mv)&most.variables){
+        cat("Matrix of most variable genes used. To use the whole matrix set most.variables 
+            parameter to FALSE.\n")
+        data <- obj@ncounts$matrix.mv
+    }
+
   if (is.element(name.1,rownames(data))==TRUE & is.element(name.2,rownames(data))==TRUE){
     options(warn=-1)
     a <- as.numeric(data[name.1,])

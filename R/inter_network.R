@@ -1,18 +1,6 @@
 #' @title inter network
 #' @description Computes intercellular gene networks.
 #'
-#' @details `signal` is a list containing the cell-cell interaction tables. It
-#' is the result of the **cell_signaling()** function.
-#' @details
-#' If the user does not set `c.names`, the clusters will be named from 1 to the
-#' maximum number of clusters (cluster 1, cluster 2, ...). The user can exploit
-#' the `c.names` vector in the list returned by the **cell_classifier()**
-#' function for this purpose. The user can also provide her own cluster names.
-#' @details
-#' `species` must be equal to "homo sapiens" or "mus musculus". In the case of
-#' mouse data, the function converts mouse genes in human orthologs
-#' (according to Ensembl) such that the Reactome/KEGG interaction database can
-#' be exploited, and finally output genes are converted back to mouse.
 #' @details
 #' If `write` is TRUE, then the function writes four different files. A graphML
 #' file in the *cell-signaling* folder for intercellular interactions between
@@ -24,15 +12,11 @@
 #' network for each cell cluster named "intracell_network_Z.txt" and
 #' "intracell_network_Z.graphml", where Z is the *c.names* of the cluster.
 #'
-#' @param data a data frame of n rows (genes) and m columns (cells) of read or
-#' UMI counts (note : rownames(data)=genes)
-#' @param genes a character vector of HUGO official gene symbols of length n
-#' @param cluster a numeric vector of length m
-#' @param signal a list (result of the **cell_signaling()** function)
-#' @param c.names (optional) cluster names
-#' @param species "homo sapiens" or "mus musculus"
+#' @param obj an object of type SCSRInteraction
+#' @param dm an object of type SCSRDataModel
 #' @param write a logical (if TRUE writes graphML and text files for the
 #' interface and internal networks)
+#' @param most.variables a logical
 #' @param plot a logical
 #' @param verbose a logical
 #'
@@ -46,18 +30,43 @@
 #' @import data.table
 #'
 #' @examples
-#'m <- data.frame(cell.1=runif(10,0,2),cell.2=runif(10,0,2),cell.3=runif(10,0,2),
-#'cell.4 <- runif(10,0,2),cell.5=runif(10,0,2),cell.6=runif(10,0,2),cell.7=
-#'runif(10,0,2))
-#'rownames(m) <- paste("gene", seq_len(10))
-#'cluster <- c(1,1,1,2,3,3,2)
-#'inter_network(m,rownames(m),cluster,signal=NULL)
-inter_network <- function(data,genes,cluster,signal,c.names=NULL,
-                         species=c("homo sapiens","mus musculus"),
-                         write=TRUE,plot=FALSE,verbose=TRUE){
+#' print("dataPrepare")
+#' data <- matrix(runif(1000,0,1),nrow=50,ncol=20)
+#' rownames(data) <- paste("gene",seq_len(50))
+#' obj <- dataPrepare(data)
+#' print("cell Clustering")
+#' obj <- cellClustering(obj)
+#' print("cell Signaling")
+#' obj.int <- cellSignaling(data,int.type = "paracrine")
+#' net <- inter_network(obj.int, obj)
+
+inter_network <- function(obj, dm, plot = FALSE,
+          most.variables = TRUE, write = TRUE, verbose = TRUE){
+  
+  if (!is(dm, "SCSRDataModel")){
+        stop("dm must be a SCSRDataModel object")
+    }
+    if (!is(obj, "SCSRInteraction")){
+        stop("obj must be a SCSRInteraction object")
+    }
+
   if (dir.exists("networks")==FALSE & write==TRUE){
     dir.create("networks")
   }
+
+  c.names <- dm@cluster$names
+  cluster <- dm@cluster$id
+  data <- dm@ncounts$matrix
+  genes <- dm@ncounts$genes
+  signal <- obj@LRinter
+
+  if (!is.null(dm@ncounts$matrix.mv)&most.variables){
+        cat("Matrix of most variable genes used. To use the whole matrix set most.variables 
+            parameter to FALSE.\n")
+        data <- dm@ncounts$matrix.mv
+        genes <- dm@ncounts$genes.mv
+    }
+
   if (is.null(c.names)==TRUE){
     c.names <- paste("cluster",seq_len(max(cluster)))
   }
@@ -74,7 +83,7 @@ inter_network <- function(data,genes,cluster,signal,c.names=NULL,
   rownames(data) <- genes
   interface <- list()
 
-  species <- match.arg(species)
+  species <- dm@initial.organism
   if (species=='mus musculus'){
     Hs2mm <- mm2Hs[,1]
     mm2Hs <- mm2Hs[,2]

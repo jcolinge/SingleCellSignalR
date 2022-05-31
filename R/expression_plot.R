@@ -1,37 +1,46 @@
 #' @title Expression Plot
 #' @description Displays the level of expression of a gene in each cell on the 2D projected data.
 #'
-#' @details This function displays the expression level of a gene of interest on
-#' a 2D projection.
 #' @details
 #' `name` can be any character that corresponds to a row name
-#' of `data`.
-#' @details
-#' `tsne` corresponds to the 2D coordinates for each cell. Although
-#' t-SNE maps are widely used to display cells on a 2D projection, the user
-#' can provide any table with two columns and a number of rows equal to the
-#' number of columns of *data* (i.e. the two first components of a PCA).
+#' of the matrix counts present in the object.
 #' @details
 #' `colors` must be "default", "rainbow" or "heat" exclusively. "rainbow" and
 #' "heat" are the color palettes provided in R.
 #'
-#' @param data a data frame of n rows (genes) and m columns (cells) of read or UMI counts (note : rownames(data)=genes)
+#' @param obj an SCSRDataModel object
 #' @param name the identifier of the gene of interest
-#' @param tsne a table of n rows and 2 columns with 2D projection coordinates for each cell
 #' @param colors "default" returns the default colorpanel, also accepts "rainbow" or "heat"
+#' @param most.variables a logical
 #'
 #' @return The function returns a R plot.
 #' @export
 #' @importFrom gplots colorpanel
 #'
 #' @examples
-#' data <- matrix(runif(5,0,1),ncol=5)
-#' data[2] <- data[5] <- 0
-#' rownames(data) <- "gene 1"
-#' tsne <- matrix(runif(10,0,1),ncol=2)
-#' expression_plot(data,"gene 1",tsne)
-#'
-expression_plot <- function(data,name,tsne,colors=c("default","rainbow","heat")){
+#' print("dataPrepare")
+#' data <- matrix(runif(1000,0,1),nrow=50,ncol=20)
+#' rownames(data) <- paste("gene",seq_len(50))
+#' obj <- dataPrepare(data)
+#' print("cell Clustering")
+#' obj <- cellClustering(obj)
+#' expression_plot(obj, "gene 20")
+
+expression_plot <- function(obj,name,colors=c("default","rainbow","heat"),most.variables=TRUE){
+
+  if (!is(obj, "SCSRDataModel")){
+        stop("obj must be a SCSRDataModel object")
+    }
+
+  data <- obj@ncounts$matrix
+  tsne <- obj@cluster$tsne
+
+  if (!is.null(obj@ncounts$matrix.mv)&most.variables){
+        cat("Matrix of most variable genes used. To use the whole matrix set most.variables 
+            parameter to FALSE.\n")
+        data <- obj@ncounts$matrix.mv
+    }
+
   options(warn=-1)
   colors <- match.arg(colors)
   opar <- par()

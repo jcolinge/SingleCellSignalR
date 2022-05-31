@@ -3,13 +3,9 @@
 #' all clusters.
 #'
 #'
-#' @param data a data frame of n rows (genes) and m columns (cells) of read or
-#' UMI counts (note : rownames(data)=genes)
-#' @param genes a character vector of HUGO official gene symbols of length n
-#' @param cluster a numeric vector of length m
-#' @param c.names (optional) cluster names
+#' @param obj an object of type SCSRDataModel
 #' @param n an integer the number of most variables interactions
-#' @param species "homo sapiens" or "mus musculus"
+#' @param most.variables a logical
 #'
 #' @return The function displays a heatmap showing the most variable
 #' interactions over all clusters
@@ -19,16 +15,36 @@
 #' @importFrom stats var
 #'
 #' @examples
-#' data <- matrix(runif(1000,0,1),nrow=5,ncol=200)
-#' genes <- c("gene 1","gene 2","gene 3","gene 4","gene 5")
-#' cluster <- c(rep(1,100),rep(2,100))
-#' mv_interactions(data,genes,cluster)
-mv_interactions <- function(data,genes,cluster,c.names=NULL,n=30,
-                           species=c("homo sapiens","mus musculus")){
+#'
+#' print("dataPrepare")
+#' data <- matrix(runif(1000,0,1),nrow=50,ncol=20)
+#' rownames(data) <- paste("gene",seq_len(50))
+#' obj <- dataPrepare(data, cluster = c(rep(1,10),rep(2,10)))
+
+#' mv_interactions(obj)
+
+mv_interactions <- function(obj,n=30,most.variables=TRUE){
+
+
+  if (!is(obj, "SCSRDataModel"))
+        stop("obj must be an object of class SCSRDataModel")
+
+  c.names <- obj@cluster$names
+  cluster <- obj@cluster$id
+  genes <- obj@ncounts$genes
+  data <- obj@ncounts$matrix
+   if (!is.null(obj@ncounts$matrix.mv)&most.variables){
+        cat("Most variable genes used. To use the whole gene set set most.variables 
+            parameter to FALSE.\n")
+        data <- obj@ncounts$matrix.mv
+        genes <- obj@ncounts$genes.mv
+    }
+  species <- obj@initial.organism
+
   if (is.null(c.names)==TRUE){
     c.names <- paste("cluster",seq_len(max(cluster)))
   }
-  species <- match.arg(species)
+
   if (species=='mus musculus'){
     Hs2mm <- mm2Hs[,1]
     mm2Hs <- mm2Hs[,2]
