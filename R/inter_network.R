@@ -12,7 +12,7 @@
 #' network for each cell cluster named "intracell_network_Z.txt" and
 #' "intracell_network_Z.graphml", where Z is the *c.names* of the cluster.
 #'
-#' @param obj an object of type SCSRInteraction
+#' @param obj an object of type SCSRInference
 #' @param dm an object of type SCSRDataModel
 #' @param write a logical (if TRUE writes graphML and text files for the
 #' interface and internal networks)
@@ -46,8 +46,8 @@ inter_network <- function(obj, dm, plot = FALSE,
   if (!is(dm, "SCSRDataModel")){
         stop("dm must be a SCSRDataModel object")
     }
-    if (!is(obj, "SCSRInteraction")){
-        stop("obj must be a SCSRInteraction object")
+    if (!is(obj, "SCSRInference")){
+        stop("obj must be a SCSRInference object")
     }
 
   if (dir.exists("networks")==FALSE & write==TRUE){

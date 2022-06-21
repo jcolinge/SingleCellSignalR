@@ -14,7 +14,7 @@
 #' `limit` is the maximum number of interactions displayed on one chord
 #' diagram. Raising this limit over 30 may decrease the visibility.
 #'
-#' @param obj a SCSRInteraction object
+#' @param obj a SCSRInference object
 #' @param dm a SCSRDataModel object
 #' @param show.in a vector of which elements of ```signal``` must be shown
 #' @param write.in a vector of which elements of ```signal``` must be written
@@ -56,8 +56,8 @@ visualize_interactions <- function(obj, dm,show.in=NULL,write.in=NULL,write.out=
   if (!is(dm, "SCSRDataModel")){
         stop("dm must be a SCSRDataModel object")
     }
-    if (!is(obj, "SCSRInteraction")){
-        stop("obj must be a SCSRInteraction object")
+    if (!is(obj, "SCSRInference")){
+        stop("obj must be a SCSRInference object")
     }
   c.names <- dm@cluster$names
   signal <- obj@LRinter

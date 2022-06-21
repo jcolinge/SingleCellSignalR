@@ -25,7 +25,7 @@
 #' @param dm a SCSRDataModel object
 #' @param goi gene of interest (typically a receptor)
 #' @param coi name of the cluster of interest
-#' @param obj a SCSRInteraction object
+#' @param obj a SCSRInference object
 #' @param cell.prop a threshold, only the genes expressed in this proportion of
 #' the cells of the coi will be taken into account
 #' @param write a logical (if TRUE writes graphML and text files for the
@@ -67,8 +67,8 @@ intra_network <- function(dm,goi,coi,obj=NULL,cell.prop=0.2,
     }
     if (!is.null(obj)){
     signal <- obj@LRinter
-      if (!is(obj, "SCSRInteraction")){
-        stop("obj must be a SCSRInteraction object")
+      if (!is(obj, "SCSRInference")){
+        stop("obj must be a SCSRInference object")
       }
     }
 
