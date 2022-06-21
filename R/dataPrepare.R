@@ -33,7 +33,9 @@
 #' @param write a logical
 #' @param verbose a logical
 #' @param plot a logical
-#'
+#' @param method.ortho    3 choices are available ("gprofiler","homologene","babelgene")
+#' gprofiler is set by  default.
+#' 
 #' @return The function returns an object of type SCSRDataModel.
 #'
 #' @export
@@ -50,8 +52,9 @@
 #' rownames(data) <- paste("gene",seq_len(50))
 #' obj <- dataPrepare(data)
 
-dataPrepare <- function(file, cluster = NULL, most.variables = 0, lower = 0, upper = 0, 
-                          normalize = TRUE, write = FALSE, verbose = TRUE, plot = FALSE){
+dataPrepare <- function(file, species = "hsapiens", cluster = NULL, most.variables = 0, lower = 0,  
+                          upper = 0, normalize = TRUE, write = FALSE, verbose = TRUE, plot = FALSE,
+                          method.ortho = c("gprofiler","homologene","babelgene")){
 
   if (dir.exists("data")==FALSE & write==TRUE){
     dir.create("data")
@@ -79,15 +82,6 @@ dataPrepare <- function(file, cluster = NULL, most.variables = 0, lower = 0, upp
     colCheck = rownames(data)
   }
   
-  if(sum(colCheck %in% c(mm2Hs$`Gene name`,mm2Hs$`Mouse gene name`))==0){
-    stop("Please convert gene ID's (Ensembl or NCBI ID) to official HUGO
-        gene symbols")
-  }else if (sum(colCheck %in% mm2Hs$`Mouse gene name`)>sum(colCheck %in% mm2Hs$`Gene name`)){
-    species = "mus musculus"
-  }else {
-    species = "hsapiens"
-  }
-  
   data <- subset(data, !duplicated(colCheck))
   genes <- colCheck
   
@@ -102,6 +96,14 @@ dataPrepare <- function(file, cluster = NULL, most.variables = 0, lower = 0, upp
   data <- data[rowSums(data)>0,]
   data <- data[rowSums(data)<=quantile(rowSums(data),1-upper) &
                 rowSums(data)>=quantile(rowSums(data),lower),]
+
+  if (species!="hsapiens"){
+    cat("\nConverting data to human data...\n")
+    conversion.dict <- .findOrthoGenes(from_organism = species,
+        from_values = rownames(data),
+        method = method.ortho)
+    data <- .convertToHuman(data, conversion.dict)
+  }
 
   if (verbose==TRUE){
     cat(paste(dim(data)[1],"genes"),fill=TRUE)
@@ -137,14 +139,13 @@ dataPrepare <- function(file, cluster = NULL, most.variables = 0, lower = 0, upp
   } else {
     if (most.variables != 0) {
       most.variables = 0
-      cat("Most variables should be an interger (number of genes
+      cat("Most variables should be an integer (number of genes
       to keep as regard to their variation). No most variable count
       matrix will be computed.\n")
     }
     res <- data
     mat <- as.matrix(res)
     mat.mv <- NULL
-    genes.mv <- NULL
   }
 
   names <- NULL
@@ -161,9 +162,133 @@ dataPrepare <- function(file, cluster = NULL, most.variables = 0, lower = 0, upp
     id <- match(cluster,names)
   }
 
+  homolog.genes <- list()
+    if (species!="hsapiens"){
+          mat <- as.data.frame(mat) 
+          mat$human.gene.name          <- rownames(mat)
+          conversion.dict$human.gene.name  <- rownames(conversion.dict) 
+          counts.transposed <- merge(mat,conversion.dict, by.x='human.gene.name',all=FALSE,sort=FALSE)
+          homolog.genes <- list(counts.transposed$Gene.name)
+          mat$human.gene.name <- NULL
+          mat <- data.matrix(mat) 
+
+          mat.mv <- as.data.frame(mat.mv) 
+          mat.mv$human.gene.name          <- rownames(mat.mv)
+          conversion.dict$human.gene.name  <- rownames(conversion.dict) 
+          counts.transposed <- merge(mat.mv,conversion.dict, by.x='human.gene.name',all=FALSE,sort=FALSE)
+          homolog.genes <- list(counts.transposed$Gene.name)
+          mat.mv$human.gene.name <- NULL
+          mat.mv <- data.matrix(mat.mv) 
+          rm(counts.transposed)
+    }
+
   new("SCSRDataModel", initial.organism = species, ncounts = list(matrix = mat, 
-    matrix.mv = mat.mv, genes = rownames(mat), genes.mv = genes.mv, 
+    matrix.mv = mat.mv, initial.orthologs = homolog.genes, initial.orthologs.mv = homolog.genes.mv,
     param = list(normalization = normalize, outliers = c(lower,upper), most.variables = most.variables)),
     cluster = list(id = id, names = names, tsne = NULL, method = NULL)) 
 }
 
+#' @title Orthologs Gene Names 
+#'
+#' @description By default, BulkSignalR is designed to work with Homo Sapiens.
+#' In order to work with other species, gene names need to be first converted
+#' to Human following an orthology mapping process.
+#' @param from_organism    An organism as defined in Ensembl : 
+#' drerio, mmusculus, celegans, dmelanogaster...This is the source organism 
+#' from which you want to convert the gene names to Homo Sapiens.
+#' @param from_values    A vector of gene names from the current species studied.
+#' @param method    3 choices are available ("gprofiler","homologene","babelgene")
+#' gprofiler is set by  default.
+#' @return Return a datraframe with 2 columns containing the gene names
+#' for two species.  
+#' First column is the gene name from the source organism 
+#' and the second column corresponds to the  homologous gene name
+#' in  Homo Sapiens.
+#' This function uses orthogene package to query databases
+#' for homologous genes annotation.
+#' @importFrom orthogene convert_orthologs
+#'
+#' @export
+#' @examples
+#' print('findOrthoGenes')
+.findOrthoGenes<- function(from_organism ="mmusculus",
+        from_values=c("TP53"),
+        method = c("gprofiler","homologene","babelgene")) {
+
+        method <- match.arg(method)
+        if (!method  %in% c("gprofiler","homologene","babelgene"))
+                stop("Method selected should be gprofiler,homologene or babelgene")
+
+          orthologs_dictionnary <- orthogene::convert_orthologs(gene_df = from_values,
+                                        gene_input = "rownames", 
+                                        gene_output = "rownames", 
+                                        input_species = from_organism,
+                                        output_species = "human",
+                                        non121_strategy = "drop_both_species", # assure 1.1 
+                                        method = method,
+                                        verbose = FALSE) 
+           
+          orthologs_dictionnary$index <- NULL  
+          names(orthologs_dictionnary)[1] <- paste("Gene.name")
+    
+    print(head(orthologs_dictionnary,10))
+    cat("Dictionnary Size: ", 
+        dim(orthologs_dictionnary)[1],
+         " genes \n", sep="") 
+
+    nL <- length(intersect(
+        SingleCellSignalR::LRdb$ligand,
+        rownames(orthologs_dictionnary)) )
+    cat("-> ",nL, " : Ligands \n", sep="") 
+
+    nR <- length(intersect(
+        SingleCellSignalR::LRdb$receptor,
+        rownames(orthologs_dictionnary))) 
+    cat("-> ", nR, " : Receptors \n", sep="") 
+      
+    orthologs_dictionnary
+
+
+} #findOrthoGenes 
+
+
+#' @title Transpose To Human Gene Names
+#' @description By default, BulkSignalR is designed to work with Homo Sapiens.
+#' In order to work with other species, gene names need to be first converted
+#' to Human following an orthology mapping process.
+#' @param counts     A table or matrix of read counts.
+#' @param dictionnary   A dataframe where first column belong to 
+#  organism of study & rownames are the human gene names.
+#'
+#' @return Return a counts matrix transposed for Human.
+#'
+#' @export
+#' @examples
+#' print('transposeToHuman')
+.convertToHuman <- function(counts,dictionnary=data.frame(Gene.name="A",row.names = "B")) {
+
+          # Should test counts have rownames.
+          if(all(row.names(counts)==seq(1, nrow(counts))))
+            stop("Rownames should be set as human gene names for counts.", call. = FALSE)
+         if(all(row.names(dictionnary)==seq(1, nrow(dictionnary))))
+            stop("Rownames should be set ashuman gene names dictionnary.", call. = FALSE)
+          if(dim(dictionnary)[2]!=1)
+            stop("Unique column must be set for dictionnary.", call. = FALSE)
+         if(! all(apply(counts, 2, function(x) is.numeric(x)))) 
+            stop("Some variables are not defined as numerics.", call. = FALSE)
+
+          # Transform Matrice using orthologs_dictionnary
+          counts$Gene.name  <- rownames(counts)
+          dictionnary$human.gene.name  <- rownames(dictionnary) 
+ 
+          counts.transposed <- merge(counts,dictionnary, by.x='Gene.name',all=FALSE,sort=FALSE)
+
+          counts.transposed$Gene.name <- NULL
+          counts.transposed <-counts.transposed[c("human.gene.name", setdiff(names(counts.transposed), "human.gene.name"))]
+
+          rownames(counts.transposed) <- counts.transposed[,1]
+          counts.transposed           <- counts.transposed[,-1]
+        
+          counts.transposed
+
+ } 

@@ -36,7 +36,7 @@ setClass("SCSRDataModel",
              ncounts = list(matrix = matrix(1, nrow = 2, ncol = 3, dimnames = list(c("A","B"), c("C","D","E"))),
                             matrix.mv = NULL,
                             param = list(outliers = c(0,0), normalization = TRUE, most.variables = 0),
-                            genes = c("A","B"), genes.mv = NULL),
+                            genes = c("A","B"), genes.mv = NULL, initial.orthologs = NULL),
              cluster = list(tsne = NULL,
                                 id = NULL,
                                 method = NULL, 
@@ -249,7 +249,7 @@ setMethod("cellClustering", "SCSRDataModel", function(obj, n.cluster = 0,n = 10,
                                     method = c("simlr","kmeans"), plot = TRUE, pdf = TRUE,write = TRUE) {
   
 
-    data = obj@ncounts$matrix
+    data <- obj@ncounts$matrix
 
     if (!is.null(obj@ncounts$matrix.mv)&most.variables) {
         data = obj@ncounts$matrix.mv
@@ -413,19 +413,25 @@ setMethod("cellClassifying", "SCSRDataModel", function(obj, markers = markers_de
                                                     write = TRUE, verbose = TRUE) {
   tsne <- obj@cluster$tsne
   data <- obj@ncounts$matrix
-  genes <- obj@ncounts$genes
+  if( initialOrganism(obj)!="hsapiens" )
+        genes <- unlist(obj@ncounts$initial.orthologs)
+
+    else genes <- rownames(data)
 
   if (!is.null(obj@ncounts$matrix.mv)&most.variables){
     cat("Matrix of most variable genes used. To use the whole matrix set most.variables 
         parameter to FALSE.\n")
     data <- obj@ncounts$matrix.mv
-    genes <- obj@ncounts$genes.mv
+    if( initialOrganism(obj)!="hsapiens" )
+        genes <- unlist(obj@ncounts$initial.orthologs.mv)
+
+    else genes <- rownames(data)
   }
 
   if (dir.exists("cell-classification")==FALSE & write==TRUE){
       dir.create("cell-classification")
   }
-  rownames(data) <- genes
+  #rownames(data) <- genes
   n.types <- ncol(markers)
 
   tmp <- data[as.character(unlist(markers))[as.character(unlist(markers)) %in%
@@ -644,15 +650,21 @@ if (is.null(markers)&!is.null(obj@dge.cluster$markers)){
 
 cluster <- obj@cluster$id
 c.names <- obj@cluster$names
-genes <- obj@ncounts$genes
 data <- obj@ncounts$matrix
+if( initialOrganism(obj)!="hsapiens" )
+        genes <- unlist(obj@ncounts$initial.orthologs)
 
-if (!is.null(obj@ncounts$matrix.mv)&most.variables){
+    else genes <- rownames(data)
+
+  if (!is.null(obj@ncounts$matrix.mv)&most.variables){
     cat("Matrix of most variable genes used. To use the whole matrix set most.variables 
         parameter to FALSE.\n")
     data <- obj@ncounts$matrix.mv
-    genes <- obj@ncounts$genes.mv
-}
+    if( initialOrganism(obj)!="hsapiens" )
+        genes <- unlist(obj@ncounts$initial.orthologs.mv)
+
+    else genes <- rownames(data)
+  }
 
 if (dir.exists("cluster-analysis")==FALSE & write==TRUE){
     dir.create("cluster-analysis")
@@ -669,7 +681,7 @@ if (dir.exists("cluster-analysis")==FALSE & write==TRUE){
         clusters and must contain no duplicates. The cluster names must not
         include special characters")
   }
-  rownames(data) <- genes
+  # rownames(data) <- genes
   n.cluster <- max(cluster)
   z <- c(seq_len(n.cluster))
   class <- list()
@@ -840,11 +852,6 @@ if (!isGeneric("cellSignaling")) {
 #' covers all the possible interactions and increasing the `tol` argument allows
 #' the user to move interactions from "autocrine" to "paracrine".
 #' @details
-#' If the user does not set `c.names`, the clusters will be named from 1 to the
-#' maximum number of clusters (cluster 1, cluster 2, ...). The user can exploit
-#' the `c.names` vector in the list returned by the **cell_classifier()**
-#' function for this purpose. The user can also provide her own cluster names.
-#' @details
 #' `s.score` is the threshold on the LRscore. The value must lie in the [0;1]
 #' interval, default is 0.5 to ensure confident ligand-receptor pair
 #' identifications (see our publication). Lower values increase the number of
@@ -855,11 +862,6 @@ if (!isGeneric("cellSignaling")) {
 #' each gene during the differential gene expression analysis. Its default value
 #' is log~2~(1.5) It further selects the differentially expressed genes (>logFC)
 #' after the p-value threshold imposed in the function **cluster_analysis()** below.
-#' @details
-#' `species` must be equal to "homo sapiens" or "mus musculus", default is
-#' "homo sapiens". In the case of mouse data, the function converts mouse genes
-#' in human orthologs (according to Ensembl) such that LR*db* can be exploited,
-#' and finally output genes are converted back to mouse.
 #' @details 
 #' If `most.variables` is TRUE, then the function uses the most variable genes
 #' matrix counts if it exists in the object.
@@ -876,7 +878,7 @@ if (!isGeneric("cellSignaling")) {
 #' @details- In case the function **cluster_analysis()** was not executed, this function
 #' would work but "specific" interactions would not be annotated as such.
 #'
-#' @return A SCSRSignaling with LR interaction
+#' @return A SCSRInference with LR interaction
 #'
 #' @export
 #'
@@ -897,6 +899,10 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
 
     cluster <- obj@cluster$id
     c.names <- obj@cluster$names
+    if (is.null(cluster)){
+        cluster <- obj@cell.classification$identical
+        c.names <- obj@cell.classification$names
+    }
     species <- obj@initial.organism
     data <- obj@ncounts$matrix
     param <- list(s.score = s.score, logFC = logFC, tol = tol)
@@ -924,25 +930,13 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
       }
       int.type <- match.arg(int.type)
 
-      #rownames(data) <- genes
+    
       z <- seq_len(max(cluster))
       lig <- unique(LRdb$ligand)
       rec <- unique(LRdb$receptor)
       data <- data.frame(data)
       data <- data[rowSums(data)>0,]
       med <- sum(data)/(nrow(data)*ncol(data))
-
-      if (species=='mus musculus'){
-        Hs2mm <- mm2Hs[,1]
-        mm2Hs <- mm2Hs[,2]
-        names(mm2Hs) <- as.character(Hs2mm)
-        names(Hs2mm) <- as.character(mm2Hs)
-        m.names <- mm2Hs[rownames(data)]
-        data <- subset(data,(!is.na(m.names)))
-        m.names <- m.names[!is.na(m.names)]
-        rownames(data) <- as.character(m.names)
-      }
-
 
       out <- list()
       ## Autocrine -------------------
@@ -1001,10 +995,6 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
                 final <- final[final[,4]>s.score,]
                 final <- final[order(final[,4],decreasing=TRUE),]
 
-                if (species=="mus musculus"){
-                  final[,1] <- Hs2mm[as.character(final[,1])]
-                  final[,2] <- Hs2mm[as.character(final[,2])]
-                }
 
                 if (nrow(final)>0){
                   k <- k+1
@@ -1049,11 +1039,10 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
                                ".txt",sep=""),data.table=FALSE)
             }else{
                 resu <- obj@dge.cluster$genes[[i]]
+
             }
             gene.list[[i]] <- resu$genes[resu$logFC>logFC]
-            if (species == "mus musculus"){
-              gene.list[[i]] <- mm2Hs[gene.list[[i]]]
-            }
+            
             gene.list[[i]] <- gene.list[[i]][!is.na(gene.list[[i]])]
           }
         }
@@ -1118,11 +1107,6 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
                 final <- final[final[,4]>s.score,]
                 final <- final[order(final[,4],decreasing=TRUE),]
 
-                if (species=="mus musculus"){
-                  final[,1] <- Hs2mm[as.character(final[,1])]
-                  final[,2] <- Hs2mm[as.character(final[,2])]
-                }
-
                 if (nrow(final)>0){
                   k=k+1
                   out[[k]] <- final
@@ -1158,10 +1142,10 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
         LR <- foreach (inter = 1:length(out), .combine = 'rbind') %do%{
             data.frame(Ligand = out[[inter]][,1], Receptor = out[[inter]][,2])
             }
-        new("SCSRInteraction", LRinter = out, LRsubpop = out_subpop, ligands = LR$Ligand,
+        new("SCSRInference", LRinter = out, LRsubpop = out_subpop, ligands = LR$Ligand,
         receptors = LR$Receptor, param = param)
     }else{
-        new("SCSRInteraction", LRinter = NULL, LRsubpop = NULL, ligands = NULL,
+        new("SCSRInference", LRinter = NULL, LRsubpop = NULL, ligands = NULL,
         receptors = NULL, param = param)
     }
 }) 
