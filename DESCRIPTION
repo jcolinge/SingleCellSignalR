@@ -9,6 +9,7 @@ Encoding: UTF-8
 LazyData: true
 Imports:
   BiocManager,
+  celldex,
   circlize,
   limma,
   igraph,
@@ -16,6 +17,7 @@ Imports:
   grDevices,
   edgeR,
   SIMLR,
+  SingleR,
   data.table,
   pheatmap,
   stats,
