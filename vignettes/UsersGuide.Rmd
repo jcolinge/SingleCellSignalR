@@ -1,114 +1,197 @@
 ---
-title: "SingleCellSignalR"
-output: rmarkdown::html_vignette
+title: "Obtaining cellular network maps with SingleCellSignalR"
+date: "`r format(Sys.Date(), '%m/%d/%Y')`"
+author:
+- name: "Simon Cabello-Aguilar"
+  affiliation: "Institut de Recherche en Cancérologie de Montpellier, Inserm, Montpellier, France ; Institut régional du Cancer Montpellier, Montpellier, France ; Université de Montpellier, Montpellier, France"
+- name: "Jacques Colinge"
+  affiliation: "Institut de Recherche en Cancérologie de Montpellier, Inserm, Montpellier, France ; Institut régional du Cancer Montpellier, Montpellier, France ; Université de Montpellier, Montpellier, France"
+output: 
+  rmarkdown::html_document:
+    highlight: pygments
+    toc: true
 vignette: >
   %\VignetteIndexEntry{my-vignette}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
-)
-options(mc.cores=2)
+```{=html}
+<style type="text/css">
+.smaller {
+  font-size: 10px
+}
+</style>
 ```
 
-# User's Guide
+```{r setup, echo=FALSE, results="hide"}
+knitr::opts_chunk$set(tidy = FALSE,
+                      cache = FALSE,
+                      dev = "png",
+                      message = FALSE, error = FALSE, warning = TRUE)
+```	
 
-### Simon Cabello-Aguilar<sup>1</sup>, Jacques Colinge<sup>1</sup>
+# Introduction
 
-<sup>1</sup> Institut de Recherche en Cancérologie de Montpellier, Inserm, Montpellier, France ; Institut régional du Cancer Montpellier, Montpellier, France ; Université de Montpellier, Montpellier, France  
-
-
-----
-
-
-## Introduction
+## What is `SingleCellSignalR`?
 
 This guide provides an overview of the SingleCellSignalR package, a comprehensive framework to obtain cellular network maps from scRNA-seq data. SingleCellSignalR comes with a complete pipeline integrating existing methods to cluster individual cell transcriptomes and identify cell subpopulations as well as novel cellular network-specific algorithms. More advanced users can substitute their own logic or alternative tools at various stages of data processing. SingleCellSignalR also maps cell subpopulation internal network linked to genes of interest through the integration of regulated KEGG and Reactome pathways together with ligands and receptors involved in inferred cell-cell interactions. The cellular networks can be exported in text files and graphML objects to be further explored with Cytoscape (www.cytoscape.org), yEd (www.yworks.com), or similar software tools.  
-  
-  
------
 
+## Starting point
 
-## Quick Start
+Independently of the chosen scRNA-seq platform, deep or shallower, data comes as a table of read or unique molecule identifier (UMI) counts, one column per individual cell and one row per gene. Initial processing is required to prepare such data for subsequent analysis and we decided to propose a generic solution for the sake of convenience, though users can easily substitute their own computations. Gene names (HUGO symbols) are provided in the first column of the table. 
 
-Independent of the chosen scRNA-seq platform, deep or shallower, data comes as a table of read or unique molecule identifier (UMI) counts, one column per individual cell and one row per gene. Initial processing is required to prepare such data for subsequent analysis and we decided to propose a generic solution for the sake of convenience, though users can easily substitute their own computations. Gene names (HUGO symbols) are provided in the first column of the table. 
-  
 Each analysis is organized around a working directory (or project folder):  
 
 ![][id0]
 
 [id0]: ./directory.png
+
+# Quick Start
+
+## Data pre-processing workflow
+
+Here we will describe the use of the `SingleCellSignalR` package from a raw read counts matrix to the obtaining of an object suitable for analyzing ligand-receptor (LR) interactions and their visualization. 
+
+Where do the file used for example come from?
   
-The file containing the read counts should be placed in the working directory.  
+### Data loading
+
+There are two ways of loading the data in `SingleCellSignalR` through the `dataPrepare()` function:
+- the read counts matrix is opened in the R environment: the matrix is given as the `file` parameter.
+- the file containing the read counts is in the working directory: the file's name is given as the `file` parameter. 
+
 ```r
-> file <- "example_data.txt"
+data <- "example_data.txt"
 ```
-Data processing can then start:    
-```r
-> data <- data_prepare(file = file)
-log-Normalization
-14223 genes
-400 cells
-Zero rate = 89.6%
-```
+
+Data processing can then start. By default the `dataPrepare()` function eliminates non expressed genes before performing read count normalization through a method by quantile. 
+When not working on humans, the species needs to be indicated through the `species` parameter and an ortholog genes correspondence will be performed.
+
 ```{r, echo=FALSE, eval=TRUE, results='hide'}
 library(SingleCellSignalR)
 data(example_dataset, package = "SingleCellSignalR")
-data = example_dataset
-genes = data$genes
-rownames(data) = genes
-data = data[,-1]
+# data <- as.data.frame(data)
+data <- example_dataset
 ```
 
-The **data_prepare()** function eliminates non expressed genes before performing read count normalization.    
+```{r, echo=TRUE, eval=TRUE}
+object <- dataPrepare(file = data)
+```
+
+This first function creates an object that stores the data used for ligand-receptor analysis. It contains the read counts matrix, the species and eventually information upon orthologs genes.
+
+### Clustering
+
+Two options are possible for clustering:
+
+* **statistically based approach** through *kmeans* or *simlr* algorithm to cluster cells based on gene expression. This is done through the `cellClustering()` function.
+
+* **cell based approach** using a marker table to classify each cell to a specific celltype. This is done through the `cellClassifying()` function
+
+#### `cellClustering()`
 
 Normalized data are submitted to a clustering algorithm to identify cell subpopulations:  
 
 ```{r, echo=TRUE, eval=FALSE}
-clust <- clustering(data = data, n.cluster = 4, n = 10, method = "simlr",write = FALSE,pdf=FALSE)
+object <- cellClustering(obj = object, n = 10, method = "simlr")
 ```
 
-```{r, echo=FALSE, eval=TRUE}
-clust <- clustering(data = data,n.cluster = 4, n = 10, method = "kmeans",write = FALSE,pdf=FALSE)
+We set the method argument to `simlr`, which caused the **SIMLR()** function of the SIMLR package [1] to be used. The **SIMLR_Estimate_Number_of_Clusters()** function determined the number of clusters, between 2 and n (n=10 above). 
+Alternatively the `kmeans` method can be used for clustering.
+
+At this step, specific annotation can be attributed to each cluster by specifying a `classification` method:
+* **by cluster**: mean gene expression for each cluster is compared with the signatures described in the `markers` table. The `markers()` function enables the user to select specific celltype in the default markers table. A personal markers table can also be inputted.
+* **singler**: the package `SingleR` is used with the reference dataset from `HumanPrimaryCellAtlasData`.
+
+A 2D tsne projection can be calculated and plotted (default `plot = TRUE`).
+
+```{r, echo=TRUE, eval=TRUE}
+markers = markers(c("immune","tme"))
+object <- cellClustering(obj = object, n = 10, method = "simlr", classification = "by cluster",
+                         markers = markers)
 ```
 
-We set the method argument to `simlr`, which caused the **SIMLR()** function of the SIMLR package [1] to be used. The **SIMLR_Estimate_Number_of_Clusters()** function determined the number of clusters, between 2 and n (n=10 above).  
-
-Next, differentially expressed genes in one cluster compared to the others are identified using the **cluster_analysis()** function, which relies on **edgeR**. A result table is automatically created in the *cluster-analysis* folder:  
-
-```{r, eval=TRUE, results='hide'}
-clust.ana <- cluster_analysis(data = data, genes = rownames(data), cluster = clust$cluster, write = FALSE)
+```{r, echo=TRUE, eval=FALSE}
+object <- cellClustering(obj = object, n = 10, method = "simlr", classification = "singler")
 ```
-Once the preliminary steps illustrated above are completed, **SingleCellSignalR** can be used to generate cellular interaction lists using the **cell_signaling()** function:  
+
+Cluster annotations are stored in the object's `cluster` slot, alongside the method used, and the eventual markers table.
+
+#### `cellClassifying()`
+
+The gene expression for each cell is compared with the signatures described in the `markers` table. If no projection method is available in the object (userly inputted or `cellClustering()` run previously), tsne coordinates will be calculated at this step.
+
 ```{r, eval=TRUE}
-signal <- cell_signaling(data = data, genes = rownames(data), cluster = clust$cluster, write = FALSE)
+markers <- markers(c("immune","tme"))
+object.b <- cellClassifying(obj = object, markers = markers)
 ```
 
-An intercellular network can also be generated to map the overall ligand/receptor interactions invoking the **inter_network()** function:  
+Cluster annotations are stored in the object's `cluster` slot, alongside the method used, and the eventual markers table.
+
+### Differential expression
+
+Next, differentially expressed genes in one cluster compared to the others are identified using the `dgeCluster()` function.  which relies on **edgeR**. A result table is automatically created in the *cluster-analysis* folder. DGE data and parameters are stored in the **SCSRDataModel** object's `dge.cluster` slot.
+
 ```{r, eval=TRUE}
-inter.net <- inter_network(data = data, signal = signal, genes = genes, cluster = clust$cluster, write = FALSE)
+object <- dgeCluster(obj = object)
 ```
 
-At this point the intercellular network have been generated and exported in text and graphML formats in the *networks* folder.   
-A summary of the interactions between cell clusters can be output in the form of a chord diagram by the  **visualize_interactions()** function:  
+## Using our own processed data
+
+The pre-processing workflow presented previously is optionnal and can be skipped when working on already normalized and clustered data.
+
+The object needs to be created with the `dataPrepare()` function. To avoid normalization, set the `normalize` argument to "none".
+
+```{r, echo=TRUE, eval = FALSE}
+object <- dataPrepare(file = file.normalized, normalize = "none")
+```
+
+If clustering and cell projection is already available it must be added to the object with the `addClustering()` function. If no cell projection coordinates are given, no plots will be outputted.
+When working with Seurat object, the clustering can be accessed via `seurat.object@metadata$seurat_clusters` and the cell projection via `seurat.object@reductions$tsne@cell.embeddings` (*tsne* or any other projection method used, e.g. *umap*).
+
+```{r, echo=TRUE, eval = FALSE}
+object <- addClustering(obj = object, cluster.id = clusters)
+```
+
+## Ligand-receptor analysis
+
+Once the preliminary steps illustrated above are completed, **SingleCellSignalR** can be used to generate cellular interaction lists using the `cellSignaling()` function:  
+
 ```{r, eval=TRUE}
-visualize_interactions(signal = signal)
+object.int <- cellSignaling(obj = object)
+```
+
+A summary of the interactions between cell clusters can be output in the form of a chord diagram by the  `visualize_interactions()` function:  
+
+```{r, eval=TRUE}
+visualize_interactions(obj = object.int, dm = object)
 ```
 
 This function will create a *plot* in the R plot window.  
 
-The details of the interactions between two clusters, for example cluster 1 and 2, can also be shown in the plot window with the **visualize_interactions()** function. Note that in the example below we ask for the display of two pairs of cell clusters, pair 1 that contains interactions from cluster 1 to 2, and pair 4 from cluster 2 to 1. (`names(signal)` returns the cell cluster names in each pair, see function **visualize_interactions()** details.)   
+The details of the interactions between two clusters, for example cluster 1 and 2, can also be shown in the plot window with the `visualize_interactions()` function. Note that in the example below we ask for the display of two pairs of cell clusters, pair 1 that contains interactions from cluster 1 to 2, and pair 4 from cluster 2 to 1. (`names(object.inter@LRinter)` returns the cell cluster names in each pair, see function `visualize_interactions()` details.)   
+
 ```{r, eval=TRUE}
-visualize_interactions(signal = signal,show.in=c(1,4))
+visualize_interactions(obj = object.int, dm = object,show.in=c(1,4))
 ```   
 
-And these plots can be saved into pdf files in the *images* folder using the `write.in` argument of the **visualize_interactions()** function.  
+*Remark: We observe that in the chord diagrams above, the “specific” interactions were highlighted with a thick black line.*
+
+And these plots can be saved into pdf files in the *images* folder using the `write.in` argument of the `visualize_interactions()` function.  
 ```r
-> visualize_interactions(signal = signal,write.in=c(1,4))
+visualize_interactions(obj = object.int, dm = object,write.in=c(1,4))
+```
+
+Many other visualization functions are available to plot interaction results.
+
+## Adding own LR interaction to database
+
+It is possible to add specific LR interactions to be studied. When using the `cellSignaling()` function, specifying the LR interactions as a dataframe through the `addLR` argument:
+
+```{r, echo=TRUE, eval = FALSE}
+LRadded <- dataframe(ligand = paste("Ligand ",seq_len(10)), receptor = paste("Receptor ",seq_len(10)))
+object.int <- cellSignaling(obj = object, addLR = LRadded)
 ```
 
 <span style="color:white">red</span>   
@@ -117,191 +200,87 @@ And these plots can be saved into pdf files in the *images* folder using the `wr
 
 ------
 
-
-## Examples of use 
+# Examples of use 
 
 **SingleCellSignalR** package functions have many arguments parameters that can be changed by the user to fit her needs (see Reference Manual for more details). Furthermore, several handy functions that were not illustrated above are provided to generate additional plots or reports.  
 
----
+## Marker analysis on a cancer dataset
 
-### **Exploiting the cell_classifier clustering**  
-  
-  
-```{r, echo=FALSE, eval=TRUE, results='hide'}
-data(example_dataset, package = "SingleCellSignalR")
-data = example_dataset
-genes = data$genes
-rownames(data) = genes
-data = data[,-1]
-```  
-  
-After running the example in the **Quick Start** section, the user can define cell clusters after the output of the **cell_classifier()**. The demo data set is comprised of a subset of the 10x PBMC dataset [3], i.e. immune cells. The t-SNE map calculated with the **clustering()** function will also be used. For this example we will set the `plot.details` argument to TRUE to monitor the choice of the threshold of gene signature scores.
-
-```{r, eval=TRUE, results='hide'} 
-class = cell_classifier(data=data, genes=rownames(data), markers = markers(c("immune")), tsne=clust$`t-SNE`,plot.details=TRUE,write = FALSE)
-
-```
-
-
-Let us use the cell clustering obtained with the **cell_classifier()** function. Although "undefined" cells may be interesting in some cases, here they form a heterogeneous cluster because they represent cells that seem to be in a transition between two states ("T-cells" and "Cytotoxic cells", or "Neutrophils" and "Macrophages", see heatmap above). We discard these cells.  
-```{r, eval=TRUE, results='hide'} 
-# Define the cluster vector and the cluster names 
-cluster <- class$cluster
-c.names <- class$c.names
-
-# Remove undefined cells 
-data <- data[,cluster!=(max(cluster))]
-tsne <- clust$`t-SNE`[cluster!=(max(cluster)),]
-c.names <- c.names[-max(cluster)]
-cluster <- cluster[cluster!=(max(cluster))]
-```
-Then the analysis can be carried on.
-```{r, eval=TRUE} 
-clust.ana <- cluster_analysis(data = data, genes = rownames(data), cluster = cluster, c.names = c.names, write = FALSE)
-```
-Once the cluster analysis is done, the **cell_signaling()**, **inter_network()** functions can be used.
-```{r, eval=TRUE} 
-signal <- cell_signaling(data = data, genes = genes, cluster = cluster, c.names = c.names, write = FALSE)
-
-inter.net <- inter_network(data = data, signal = signal, genes = genes, cluster = cluster, write = FALSE)
-```
-If we take a look at `signal[[6]]` (or `signal[["B-cells-Macrophages"]]`)
-```{r, eval=TRUE} 
-signal[[6]]
-```
-We can be interested in genes participating in pathways with a receptor of interest inside a cluster of interest. Let us say *ASGR1* in "Macrophages".  
-```{r, eval=FALSE} 
-intra = intra_network(goi = "ASGR1",data = data,genes = rownames(data),cluster = cluster, coi = "Macrophages", c.names = c.names, signal = signal,write=FALSE)
-```
-
-
-Now, let us take an overview of the signaling between the cell types.  
-```{r, eval=TRUE} 
-visualize_interactions(signal)
-```
-
-Let us get deeper and look at the signaling between "T-cells" and "B-cells" for example.  
-```{r, eval=TRUE} 
-visualize_interactions(signal, show.in=c(1,6))
-```
-
-The following command will save these plots in the *images* folder.
-```r
-> visualize_interactions(signal, write.in=c(1,6))
-```
----
-  
-### **Marker analysis on a cancer dataset**  
 For this example we use the scRNAseq dataset from Tirosh et al. [4]. We use only the data from patient 80.
-```r
-> file <- "patient_80.txt"
-> data <- data_prepare(file = file)
-log-Normalization
-19452 genes
-480 cells
-Zero rate = 75.5%
+
+```{r, eval=TRUE}
+data(Patient80, package = "SingleCellSignalR")
+data <- data
+
+object <- dataPrepare(file = data, lower=0.05,upper=0.0155)
 ```
+
 *Remark: One can notice that the zero rate is lower than in the previous example which reflects the fact that the sequencing is deeper.*  
-We know that this dataset is composed of melanoma cells and their microenvironment, we hence define our markers table using the **markers()** function.  
-```r
-> my.markers <- markers(category = c("immune", "tme", "melanoma"))
-> head(my.markers)
-  T-cells B-cells Macrophages Cytotoxic cells      DC Mast cells Neutrophils NK cells  Treg Endothelial cells   CAFs melanoma
-1     CD2    CD19       CD163            PRF1   CCL13      TPSB2        FPR1     XCL1 FOXP3            PECAM1    FAP      MIA
-2    CD3D   CD79A        CD14            GZMA   CD209     TPSAB1     SIGLEC5     XCL2                     VWF   THY1      TYR
-3    CD3E   CD79B       CSF1R            GZMB HSD11B1       CPA3       CSF3R     NCR1                    CDH5    DCN  SLC45A2
-4    CD3G     BLK        C1QC            NKG7              MS4A2        FCAR  KIR2DL3                   CLDN5 COL1A1    CDH19
-5    CD8A   MS4A1       VSIG4            GZMH                HDC      FCGR3B  KIR3DL1                   PLVAP COL1A2     PMEL
-6   SIRPG   BANK1        C1QA           KLRK1                        CEACAM3  KIR3DL2                   ECSCR COL6A1  SLC24A5
+
+We know that this dataset is composed of melanoma cells and their microenvironment, we hence define our markers table using the `markers()` function.  
+
+```{r, eval=TRUE}
+my.markers <- markers(category = c("immune", "tme", "melanoma"))
+head(my.markers)
 ```
-Let us perform the clustering. For this example, we set the *method* argument to "kmeans" and the *n* argument to 12.  
-```r
-> clust <- clustering(data = data,n = 12, method = "kmeans")
-Estimating the number of clusters
-Estimated number of clusters = 6
-6 clusters detected
-cluster 1 -> 157 cells
-cluster 2 -> 15 cells
-cluster 3 -> 137 cells
-cluster 4 -> 6 cells
-cluster 5 -> 114 cells
-cluster 6 -> 51 cells
+
+Let us perform the clustering. For this example, we set the `method` argument to *"kmeans"* and the *n* argument to 12. We use the markers table created above to assign a celltype to each cluster.
+
+```{r, eval=TRUE}
+object.b <- cellClustering(obj = object, n = 12, method = "simlr", markers = my.markers, classification = "singler")
 ```
-![][id10]
 
-[id10]: ./Rplot10.png
-
-Now we take advantage of the `markers` argument of the **cluster_analysis()** function using *my.markers* obtained above with the  **markers()** function.  
-
-```r
-> clust.ana <- cluster_analysis(data = data, genes = rownames(data), cluster = clust$cluster, markers = my.markers)
-edgeR differential gene expression (dge) processing:
-Looking for differentially expressed genes in cluster 1
-Looking for differentially expressed genes in cluster 2
-Looking for differentially expressed genes in cluster 3
-Looking for differentially expressed genes in cluster 4
-Looking for differentially expressed genes in cluster 5
-Looking for differentially expressed genes in cluster 6
+We can compare the results with the one obtained through cell annotation:
+```{r, eval=TRUE}
+object <- cellClassifying(obj = object, markers = my.markers)
 ```
-![][id11]
 
-[id11]: ./Rplot11.png
+Differential gene expression can be performed to find specific genes expressed in each cluster (than can then be used to define specific ligand-receptor interactions):
 
-We can see that the clusters 2 and 5 are well defined, they are respectively cancer associated fibroblasts (CAFs) and melanoma cells. The cluster 6 is also clearly composed of endothelial cells. Clusters 1 and 2 are immune cells but the clustering did not succeed in sorting them correctly and cluster 4 counts only 6 cells. Those do not seem to be homogeneous and we decide to remove them.  
-```r
-> data <- data[,clust$cluster!=4]
-> cluster <- clust$cluster[clust$cluster!=4]
-> cluster[cluster>4] <- cluster[cluster>4] - 1
+```{r, eval=TRUE}
+object <- dgeCluster(obj = object)
 ```
-Then we can name our clusters manually before pursuing the analysis.  
-```r
-> c.names <- c("Immune 1", "CAFs", "Immune 2", "melanoma", "endothelial")
-> signal <- cell_signaling(data = data, genes = rownames(data), cluster = cluster, c.names = c.names)
-Paracrine signaling: 
-Checking for signaling between cell types
-78 interactions from Immune 1 to CAFs
-30 interactions from Immune 1 to melanoma
-11 interactions from Immune 1 to endothelial
-67 interactions from CAFs to Immune 1
-85 interactions from CAFs to Immune 2
-86 interactions from CAFs to melanoma
-78 interactions from CAFs to endothelial
-84 interactions from Immune 2 to CAFs
-55 interactions from Immune 2 to melanoma
-44 interactions from Immune 2 to endothelial
-12 interactions from melanoma to Immune 1
-33 interactions from melanoma to CAFs
-19 interactions from melanoma to Immune 2
-12 interactions from melanoma to endothelial
-53 interactions from endothelial to Immune 1
-33 interactions from endothelial to CAFs
-69 interactions from endothelial to Immune 2
-28 interactions from endothelial to melanoma
+
+The most variable interactions between cluster can be analysed and plotted through the `mv_interactions()` function: 
+```{r, eval=TRUE}
+mv_interactions(obj = object)
+```  
+
+LR interactions are calculated between the different clusters (interaction type is by default `paracrine`):
+```{r, eval=TRUE}
+object.int <- cellSignaling(obj = object)
 ```
-*Remark: the names of the dge tables in the* cluster_analysis *folder must be changed according to the cluster names (c.names).*  
-And now visualize!
-```r
-> visualize_interactions(signal, show.in = c(12,18))
+
+And then visualized:
+```{r, eval=TRUE}
+visualize_interactions(obj = object.int, dm = object, show.in = c(4,1))
 ```
-![][id16]
 
-[id16]: ./Rplot16.png
-![][id13]
+It is possible to look at the genes involved in these specific interactions using the `expression_plot_2()` function.
+```{r, eval=TRUE}
+expression_plot_2(obj = object, "AREG", "EGFR")
+```  
 
-[id13]: ./Rplot13.png
-![][id12]
+With the function `expression_plot()` it is possible to look at the expression of one gene within each cell.
+```{r, eval=TRUE}
+expression_plot(obj = object, "ANXA1")
+```  
 
-[id12]: ./Rplot12.png
+An intercellular network can also be generated to map the overall ligand/receptor interactions invoking the `inter_network()` function:  
 
-*Remark: We observe that in the chord diagrams above, the "specific" interactions were highlighted with a thick black line.*  
-Let us look at one of these specific interactions using the **expression_plot_2()** function.  
-```r
-> expression_plot_2(data,"NID1","COL13A1",clust$`t-SNE`)
+```{r, eval=TRUE}
+inter.net <- inter_network(obj = object.int, dm = object)
 ```
-![][id17]
 
-[id17]: ./Rplot17.png
+We can be interested in genes participating in pathways with a receptor of interest inside a cluster of interest. Let us say *PDE1C* in *cluster 2*.
 
+```{r, eval=TRUE}
+g = object.int@LRinter[[1]][1,2]
+c = names(object.int@LRinter[[1]][2])
+intra.net <- intra_network(dm = object, obj = object.int, goi = g, coi = c)
+```
+
+At this point the intercellular network have been generated and exported in text and graphML formats in the *networks* folder.   
 
 <span style="color:white">red</span>   
 <span style="color:white">red</span>   
@@ -311,7 +290,7 @@ Thank you for reading this guide and for using **SingleCellSignalR**.
 
 ----
 
-## *References*
+# *References*
 
 1. Wang B, Zhu J, Pierson E, Ramazzotti D, Batzoglou S. Visualization and analysis of single-cell RNA-seq data by kernel-based similarity learning. Nat Methods. 2017;14:414-6.
 
