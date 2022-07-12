@@ -116,7 +116,7 @@ visualize_interactions <- function(obj, dm,show.in=NULL,write.in=NULL,write.out=
       circos.text(mean(xlim), ylim[1] + .1, sector.name, facing="inside",
                   niceFacing=FALSE, adj=c(0.5, 0),cex=1.5)
       circos.axis(h="top",labels=FALSE, major.tick=FALSE,
-                  major.tick.percentage=0.1, sector.index=sector.name,
+                  major.tick.length=1, sector.index=sector.name,
                   track.index=2)
     }, bg.border=NA)
     bx <- par("usr")
@@ -153,7 +153,7 @@ visualize_interactions <- function(obj, dm,show.in=NULL,write.in=NULL,write.out=
     circos.text(mean(xlim), ylim[1] + .1, sector.name, facing="inside",
                 niceFacing=FALSE, adj=c(0.5, 0),cex=1.5)
     circos.axis(h="top",labels=FALSE, major.tick=FALSE,
-                major.tick.percentage=0.1, sector.index=sector.name,
+                major.tick.length=1, sector.index=sector.name,
                 track.index=2)
   }, bg.border=NA)
   bx <- par("usr")
@@ -222,7 +222,7 @@ visualize_interactions <- function(obj, dm,show.in=NULL,write.in=NULL,write.out=
       circos.text(mean(xlim), ylim[1] + .1, sector.name, facing="clockwise",
                   niceFacing=TRUE, adj=c(0, 0.5))
       circos.axis(h="top",labels=FALSE,minor.ticks=FALSE,
-                  major.tick.percentage=0.2, major.tick.length=2,
+                  major.tick.length=2,
                   major.at=c(xlim), sector.index=sector.name,
                   track.index=2)
     }, bg.border=NA)
@@ -244,7 +244,7 @@ visualize_interactions <- function(obj, dm,show.in=NULL,write.in=NULL,write.out=
     dev.off()
   }
   for (n in show.in){
-    if (is.null(dim(signal[[n]]))==TRUE){
+    if (is.null(dim(signal[[n]]))){
       cnames <- names(signal[[n]])
       tmp <- matrix(signal[[n]],ncol=3)
     } else {

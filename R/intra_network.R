@@ -57,7 +57,7 @@
 #' obj <- cellClustering(obj)
 #' print("cell Signaling")
 #' obj.int <- cellSignaling(data,int.type = "paracrine")
-#' net <- inter_network(obj, "gene 20", 1, obj.int)
+#' net <- intra_network(obj, "gene 20", 1, obj.int)
 
 intra_network <- function(dm,goi,coi,obj=NULL,cell.prop=0.2,
                          write=TRUE,plot=TRUE,add.lig=TRUE,
@@ -75,13 +75,13 @@ intra_network <- function(dm,goi,coi,obj=NULL,cell.prop=0.2,
   c.names <- dm@cluster$names
   cluster <- dm@cluster$id
   data <- dm@ncounts$matrix
-  genes <- dm@ncounts$genes
+  genes <- rownames(dm@ncounts$matrix)
 
   if (!is.null(dm@ncounts$matrix.mv)&most.variables){
         cat("Matrix of most variable genes used. To use the whole matrix set most.variables 
             parameter to FALSE.\n")
         data <- dm@ncounts$matrix.mv
-        genes <- dm@ncounts$genes.mv
+        genes <- rownames(dm@ncounts$matrix.mv)
     }
   if (dir.exists("networks")==FALSE & write==TRUE){
     dir.create("networks")
@@ -99,21 +99,18 @@ intra_network <- function(dm,goi,coi,obj=NULL,cell.prop=0.2,
         characters")
   }
   if (!is.element(coi,c.names)){
-    stop(paste(coi,"must be included in c.names.","If c.names is not provided, it is set to cluster 1, cluster 2, ...,
+    stop(paste(coi,"must be included in c.names.","If c.names is not provided, 
+      it is set to cluster 1, cluster 2, ...,
         cluster N. WIth N the maximum number of clusters"))
   }
   opar <- par()
   species <- dm@initial.organism
-  if (species=='mus musculus'){
-    Hs2mm <- mm2Hs[,1]
-    mm2Hs <- mm2Hs[,2]
-    names(mm2Hs) <- Hs2mm
-    names(Hs2mm) <- as.character(mm2Hs)
-    m.names <- mm2Hs[rownames(data)]
-    data <- subset(data,(!is.na(m.names)))
-    m.names <- m.names[!is.na(m.names)]
-    rownames(data) <- as.character(m.names)
-    goi <- mm2Hs[goi]
+  goi.ini <- goi
+  if (species!='hsapiens'){
+    ortho <- data.frame(Hsapiens = rownames(data),
+              species = object@ncounts$initial.orthologs)
+    goi.ini <- goi
+    goi <- as.character(ortho[ortho$species == goi, "Hsapiens"])
   }
   pw.names <- strsplit(PwC_ReactomeKEGG$pathway,";")
   pw.sizes <- table(unlist(pw.names))
@@ -135,14 +132,14 @@ intra_network <- function(dm,goi,coi,obj=NULL,cell.prop=0.2,
   for (receptors in goi){
     qq <- qq+1
     if (!is.element(receptors,rownames(data.tmp))){
-      cat(paste0(receptors," is not expressed in ",coi),fill=TRUE)
+      cat(paste0(goi.ini[qq]," is not expressed in ",coi),fill=TRUE)
     } else {
       # receptor containing pathways ------------
       contains.receptors <- intersect(unlist(
         pw.names[PwC_ReactomeKEGG$a.gn%in%receptors |
                    PwC_ReactomeKEGG$b.gn%in%receptors]),names(good.pw))
-      if (verbose == TRUE){
-        cat(paste0("Patwhay(s) that include ",receptors,":"),fill=TRUE)
+      if (verbose){
+        cat(paste0("Patwhay(s) that include ",goi.ini[qq],":"),fill=TRUE)
         for (i in contains.receptors){
           cat(paste0("   - ",i),fill=TRUE)
         }
@@ -172,24 +169,35 @@ intra_network <- function(dm,goi,coi,obj=NULL,cell.prop=0.2,
         add.net <- NULL
         nam=NULL
         siz=NULL
-        if (is.null(signal)==FALSE & add.lig==TRUE){
+        if (!is.null(signal) & add.lig){
           for (i in names(signal)){
             if (grepl(paste0(coi,"$"),i)){
               tmp=signal[[i]]
-              if (species=="mus musculus"){
-                m.1 <- mm2Hs[tmp[,1]]
-                m.2 <- mm2Hs[tmp[,2]]
-                tmp <- subset(tmp,(!is.na(m.1)))
-                tmp <- subset(tmp,(!is.na(m.2)))
-                m.1 <- m.1[!is.na(m.1)]
-                m.2 <- m.2[!is.na(m.2)]
-                tmp[,1] <- m.1
-                tmp[,2] <- m.2
+              if (species!="hsapiens"){
+                ortho <- data.frame(Hsapiens = rownames(data),
+                                        species = object@ncounts$initial.orthologs)
+                lig <- data.frame(species = tmp$ligand, id = seq(1, nrow(tmp), 1))
+                rec <- data.frame(species = tmp$receptor, id = seq(1, nrow(tmp), 1))
+                lig <- merge(lig, ortho, by.x = "species", order = FALSE)
+                lig <- lig[order(lig$id),]
+                rec <- merge(rec, ortho, by.x = "species", order = FALSE)
+                rec <- rec[order(rec$id),]
+                tmp$ligand <- lig$Hsapiens
+                tmp$receptor <- rec$Hsapiens
               }
               if (is.element(receptors,tmp[,2])){
-                siz <- c(siz,rowMeans(data[tmp[tmp[,2]%in%receptors,1],
+                if(nrow(data[tmp[tmp[,2]%in%receptors,1],
+                                          cluster==as.numeric(which(
+                                            c.names%in%colnames(tmp)[1]))])>1){
+                  siz <- c(siz,rowMeans(data[tmp[tmp[,2]%in%receptors,1],
                                           cluster==as.numeric(which(
                                             c.names%in%colnames(tmp)[1]))]))
+                  }else{
+                    siz <- c(siz,data[tmp[tmp[,2]%in%receptors,1],
+                                          cluster==as.numeric(which(
+                                            c.names%in%colnames(tmp)[1]))])
+                  }
+                
                 nam.tmp <- rep(colnames(tmp)[1],nrow(tmp[tmp[,2]%in%receptors,]))
                 colnames(tmp)[seq_len(2)] <- c("a.gn","b.gn")
                 tmp[,1] <- paste(nam.tmp[1],tmp[,1],sep="-")
@@ -206,9 +214,15 @@ intra_network <- function(dm,goi,coi,obj=NULL,cell.prop=0.2,
         net.tmp <- cbind(net.n[,seq_len(2)],nam=rep(coi,nrow(net.n)),
                         location="intra",type=net.n$type)
         net.f <- rbind(add.net,net.tmp)
-        if (species=="mus musculus"){
-          net.f[,1] <- Hs2mm[net.f[,1]]
-          net.f[,2] <- Hs2mm[net.f[,2]]
+        if (species!="hsapiens"){
+          lig <- data.frame(Hsapiens = net.f[,1], id = seq(1, nrow(net.f), 1))
+          rec <- data.frame(Hsapiens = net.f[,2], id = seq(1, nrow(net.f), 1))
+          lig <- merge(lig, ortho, by.x = "Hsapiens", order = FALSE)
+          lig <- lig[order(lig$id),]
+          rec <- merge(rec, ortho, by.x = "Hsapiens", order = FALSE)
+          rec <- rec[order(rec$id),]
+          net.f[,1] <- lig$species
+          net.f[,2] <- rec$species
         }
         g.net <- graph_from_data_frame(net.f,directed=TRUE)
         g.net.tmp <- as.undirected(g.net)
@@ -226,10 +240,10 @@ intra_network <- function(dm,goi,coi,obj=NULL,cell.prop=0.2,
 
         y <- unlist(lapply(y$vpath,function(x) length(x)))
         y <- y-1
-        if (sum(y==-1)>0 & connected==FALSE){
+        if (sum(y==-1)>0 & !connected){
           y[y==-1] <- 1
         }
-        if (sum(y==-1)>0 & connected==TRUE){
+        if (sum(y==-1)>0 & connected){
           nam.tmp <- unique(c(net.f$a.gn,net.f$b.gn))[y==-1]
           net.f <- net.f[!net.f$a.gn%in%nam.tmp & !net.f$b.gn%in%nam.tmp,]
           y <- y[y!=-1]
@@ -321,16 +335,24 @@ intra_network <- function(dm,goi,coi,obj=NULL,cell.prop=0.2,
         par(las=2)
         par(mar=c(0,0,1,0))
 
-        if (species=="mus musculus"){
+        if (species!="hsapiens"){
           lab = unique(c(net.f$a.gn,net.f$b.gn))
 
           li = lab[net.f$location=="extra"]
           li = do.call(rbind,strsplit(li,split = "-"))
-          li[,2] = Hs2mm[li[,2]]
+
+          change <- data.frame(Hsapiens = li[,2], id = seq(1, nrow(li), 1))
+          change <- merge(change, ortho, by.x = "Hsapiens", order = FALSE)
+          change <- change[order(change$id),]
+          li[,2] <- change$species
+          
           li = paste(li[,1],li[,2],sep="-")
 
           ot = lab[net.f$location!="extra"]
-          ot = Hs2mm[ot]
+          change <- data.frame(Hsapiens = ot, id = seq(1, length(ot), 1))
+          change <- merge(change, ortho, by.x = "Hsapiens", order = FALSE)
+          change <- change[order(change$id),]
+          ot <- change$species
 
           plot(g.net, layout=l,main = coi,vertex.label = c(li,ot))
 
@@ -338,7 +360,7 @@ intra_network <- function(dm,goi,coi,obj=NULL,cell.prop=0.2,
           plot(g.net, layout=l,main = coi)
         }
 
-        if (is.null(pw.table)==FALSE){
+        if (!is.null(pw.table)){
           rawp <- pw.table$pval
           if (length(rawp)==1){
             adj <- rawp
@@ -362,19 +384,19 @@ intra_network <- function(dm,goi,coi,obj=NULL,cell.prop=0.2,
                     names.arg=(paste(pw.table$pathway,"*")),
                     cex.names=0.7,col="azure2",border="gray60")
           } else {
-            if (verbose==TRUE){
+            if (verbose){
               cat("No significant associated pathway",fill=TRUE)
             }
           }
         } else {
-          if (verbose ==TRUE){
+          if (verbose){
             cat(paste("No associated genes downstream",receptors, "in",coi),
                 fill=TRUE)
           }
         }
 
-        if (write==TRUE){
-          if (is.null(pw.table)==FALSE){
+        if (write){
+          if (!is.null(pw.table)){
             write.table(pw.table[order(pw.table$qval),],
                         file=paste0(
                           './networks/intracell_network_pathway_analysis_',

@@ -30,12 +30,19 @@ expression_plot_2 <- function(obj,name.1,name.2,most.variables=TRUE){
     }
 
   data <- obj@ncounts$matrix
-  tsne <- obj@cluster$tsne
+  tsne <- obj@cell.representation$coordinates
+  species <- obj@initial.organism
+  if (species!='hsapiens'){
+    rownames(data) <- obj@ncounts$initial.orthologs
+  } 
 
   if (!is.null(obj@ncounts$matrix.mv)&most.variables){
         cat("Matrix of most variable genes used. To use the whole matrix set most.variables 
             parameter to FALSE.\n")
         data <- obj@ncounts$matrix.mv
+        if (species!='hsapiens'){
+          rownames(data) <- obj@ncounts$initial.orthologs.mv
+        } 
     }
 
   if (is.element(name.1,rownames(data))==TRUE & is.element(name.2,rownames(data))==TRUE){

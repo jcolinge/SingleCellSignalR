@@ -27,27 +27,23 @@ library(methods)
 setClass("SCSRDataModel",
          slots=c(initial.organism = "character",
                  ncounts = "list",
-                 cell.classification = "list",
                  cluster = "list",
+                 cell.representation = "list",
                  dge.cluster = "list"
                 ),
          prototype = list(
              initial.organism = "hsapiens",
              ncounts = list(matrix = matrix(1, nrow = 2, ncol = 3, dimnames = list(c("A","B"), c("C","D","E"))),
-                            matrix.mv = NULL,
-                            param = list(outliers = c(0,0), normalization = TRUE, most.variables = 0),
-                            genes = c("A","B"), genes.mv = NULL, initial.orthologs = NULL),
-             cluster = list(tsne = NULL,
-                                id = NULL,
-                                method = NULL, 
-                                names = NULL),
-             cell.classification = list(names = NULL,
-                                    id = NULL,
-                                    nb.cells = NULL,
-                                    markers = NULL),
+                            matrix.mv = NULL, initial.orthologs = NULL, initial.orthologs.mv = NULL,
+                            param = list(formating = "none", specific = list(), most.variables = 0)),
+             cluster = list(id = NULL,
+                            method = NULL, 
+                            names = NULL,
+                            markers = NULL),
+             cell.representation = list(coordinates = NULL,
+                                        method = NULL),
              dge.cluster = list(genes = NULL,
-                                  param = NULL,
-                                  markers = NULL)
+                                param = NULL)
             
          ))
 
@@ -61,8 +57,6 @@ setValidity("SCSRDataModel",
             return("Specified counts are not numeric")
         if (is.null(row.names(object@ncounts$matrix)))
             return("Specified counts have no row names set")
-        if (length(object@ncounts$genes) != nrow(object@ncounts$matrix))
-            return("Number of genes must match the number of rows in count matrix")
 
         TRUE
     }
@@ -78,10 +72,6 @@ setMethod("show", "SCSRDataModel",
             cat("Clusters distribution:\n")
             print(object@cluster$names)
             print(table(object@cluster$id))
-        }
-        if (!is.null(object@cell.classification$id)){
-            cat("Cell classification:\n")
-            print(object@cell.classification$nb.cells)
         }
     }
 )
@@ -136,27 +126,27 @@ setMethod("cluster<-", "SCSRDataModel", function(x,value){
     x
 })
 
-if (!isGeneric("cell.classification")) {
-    if (is.function("cell.classification"))
-        fun <- cell.classification
+if (!isGeneric("cell.representation")) {
+    if (is.function("cell.representation"))
+        fun <- cell.representation
     else
-        fun <- function(x) standardGeneric("cell.classification")
-    setGeneric("cell.classification", fun)
+        fun <- function(x) standardGeneric("cell.representation")
+    setGeneric("cell.representation", fun)
 }
-#' Model cell.classification accessor
+#' Model cell.representation accessor
 #' @export
-setMethod("cell.classification", "SCSRDataModel", function(x) x@cell.classification)
+setMethod("cell.representation", "SCSRDataModel", function(x) x@cell.representation)
 
-if (!isGeneric("cell.classification<-")) {
-    if (is.function("cell.classification<-"))
-        fun <- `cell.classification<-`
+if (!isGeneric("cell.representation<-")) {
+    if (is.function("cell.representation<-"))
+        fun <- `cell.representation<-`
     else
-        fun <- function(x, value) standardGeneric("cell.classification<-")
-    setGeneric("cell.classification<-", fun)
+        fun <- function(x, value) standardGeneric("cell.representation<-")
+    setGeneric("cell.representation<-", fun)
 }
-#' cell.cluster setter (internal use only)
-setMethod("cell.classification<-", "SCSRDataModel", function(x,value){
-    x@cell.classification <- value
+#' cell.representation setter (internal use only)
+setMethod("cell.representation<-", "SCSRDataModel", function(x,value){
+    x@cell.representation <- value
     methods::validObject(x)
     x
 })
@@ -186,6 +176,112 @@ setMethod("dge.cluster<-", "SCSRDataModel", function(x,value){
     x
 })
 
+# Add cell clustering ===========================================
+if (!isGeneric("addClustering")) {
+    if (is.function("addClustering"))
+        fun <- addClustering
+    else
+        fun <- function(obj, ...) standardGeneric("addClustering")
+    setGeneric("addClustering", fun)
+}
+#' addClustering
+#'
+#' Add the cell clusters, id, names and 2D coordinates for graphs
+#'
+#' @param obj an object of class SCSRDataModel
+#' @param cluster.id a dataframe with cluster id and names
+#' @param coordinates a dataframe with x and y coordinates for the projection
+#' @param method a character, giving the projection method
+#' @param plot a logical
+#'
+#' @details The ` obj` argument must be a a SCSRDataModel object, obtained by applying
+#' the ` dataPrepare()` function to the counts matrix (either raw or already normalized).
+#' @details The ` cluster.id` argument must be a dataframe containing 2 columns: cluster 
+#' ids and names. It must have as many rows as there are columns in the matrix counts.
+#' @details The ` coordinates` argument must be a dataframe with 2 columns containing
+#' x and y coordinates in the 2D projection. It must have as many rows as there are 
+#' columns in the matrix counts.
+#' @details The ` method` defines the type of 2D projection (umap, pca, tsne, ...).
+#' @details The ` plot` arumend must be a logical to chose whether to plot the projection
+#' @details The ` coordinates` and ` method` arguments are not mandatory but are needed
+#' in order to do cell visualization.
+#'
+#' @return A SCSRDataModel with cluster definition
+#'
+#' @export
+#'
+#' @examples
+#' print("dataPrepare")
+#' data <- matrix(runif(1000,0,1),nrow=50,ncol=20)
+#' rownames(data) <- paste("gene",seq_len(50))
+#' cluster <- data.frame(id = seq(1:ncol(data)), cluster = paste("Cluster",seq_len(20)))
+#' obj <- dataPrepare(data)
+#' print(" add cell Clustering")
+#' obj <- addClustering(obj, cluster)
+
+setMethod("addClustering", "SCSRDataModel", function(obj, cluster.id, coordinates = NULL,
+                                                        method = NULL, plot = TRUE) {
+  
+
+    if (!is.data.frame(cluster.id)){
+        cluster.id <- as.data.frame(cluster.id)
+        names(cluster.id) <- "id"
+    }
+    if(is.factor(cluster.id[,1])){
+        cluster.id[,1] <- as.numeric(cluster.id[,1])
+    }
+    if (ncol(obj@ncounts$matrix)!=nrow(cluster.id)){
+        cat("Cluster.id must contain as many elements as there are cells (columns)
+            in the object matrix counts.\n")
+    }else if (!is.null(coordinates)&is.null(method)){
+        cat("Please input the projection method corresponding to the coordinates.\n")
+    }else{
+        if(!is.null(coordinates)){
+            if (ncol(obj@ncounts$matrix)!=nrow(coordinates)){
+                cat("Coordinates must contain as many elements as there are cells (columns)
+                        in the object matrix counts.\n")
+            }else if (ncol(coordinates)!=2){
+                cat("Coordinates must be a dataframe with 2 columns: x and y.\n")
+            }else{
+                coordinates <- as.data.frame(coordinates)
+                names(coordinates) <- c("x","y")
+                obj@cell.representation$coordinates <- coordinates 
+                obj@cell.representation$method <- method 
+            }
+        }else{
+            cat("No coordinates given, plotting of cell projection will not be possible.\n")
+        }
+        if (ncol(cluster.id)!=2){
+            cat("No cluster names inputted.\n")
+            cluster.id$names <- cluster.id[,1]
+        }
+        obj@cluster$id <- cluster.id[,1]
+        names <- unique(cluster.id)
+        names <- names[order(names[,1]),]
+        names.vec <- names[,2]
+        names(names.vec) <- names[,1]
+
+        obj@cluster$names <- names.vec
+
+    }
+
+    if (plot & !is.null(method)&!is.null(coordinates)){
+        cr=rainbow(max(cluster.id[,1]))
+        plot(x=coordinates$x,y=coordinates$y,type='n',main=method,
+            xlab=paste(method,"1"),ylab=paste(method,"2"),
+            xlim=c(min(coordinates$x)*1.5,max(coordinates$y)*1.1))
+        abline(h=0)
+        abline(v=0)
+        symbols(x=coordinates$x,coordinates$y,circles=rep(1,nrow(coordinates)),inches=0.04,
+            bg=cr[cluster.id[,1]],add=TRUE)
+        if (any(cluster.id[,1] != cluster.id[,2])){
+            legend("topleft",legend = obj@cluster$names,fill = cr,cex = 0.7)
+        }
+    }
+    obj
+
+})
+
 # Cell clustering ===========================================
 if (!isGeneric("cellClustering")) {
     if (is.function("cellClustering"))
@@ -201,8 +297,13 @@ if (!isGeneric("cellClustering")) {
 #' @param obj an object of class SCSRDataModel
 #' @param n.cluster a number, an estimation of the ideal number of clusters is computed if equal to 0
 #' @param n a number, the maximum to consider for an automatic determination of the ideal number of clusters
+#' @param projection.method "tsne"
 #' @param method "kmeans" or "simlr"
+#' @param markers a data frame of cell type signature genes
+#' @param classification the method to use for annotation (by cluster or a library), 
+#' "none" to not do annotation
 #' @param plot a logical
+#' @param verbose a logical
 #' @param most.variables a logical
 #' @param pdf a logical
 #' @param write a logical
@@ -210,28 +311,46 @@ if (!isGeneric("cellClustering")) {
 #' @details If the user knows the number of clusters present in her data set,
 #' then `n.cluster` can be set and the estimation of the number of clusters is
 #' skipped. `n` is the maximum number of clusters that the automatic estimation
-#' of the number of clusters will consider. It is ignored if `n.cluster` is
-#' provided. `method` must be "simlr" or "kmeans" exclusively. If set to
-#' "simlr", then the function uses the **SIMLR()** function (**SIMLR** package)
-#' to perform clustering. If set to "kmeans" the function will perform a
+#' of the number of clusters will consider. 
+#' @details It is ignored if `n.cluster` is provided. `method` must be 
+#' "simlr" or "kmeans" exclusively. If set to "simlr", then the function uses
+#' the **SIMLR()** function (**SIMLR** package) to perform clustering.
+#' @details If set to "kmeans" the function will perform a
 #' dimensionality reduction by principal component analysis (PCA) followed by
 #' K-means clustering and 2-dimensional projection by t-distributed stochastic
 #' neighbor embedding (t-SNE). Regardless of the value of `method` ("simlr" or
 #' "kmeans"), in case `n.cluster` is not provided, then the function relies on
 #' the **SIMLR_Estimate_Number_of_Clusters()** function to determine the number
-#' of clusters, between 2 and `n`. If `plot` is TRUE, then the function displays
+#' of clusters, between 2 and `n`. 
+#' @details If `plot` is TRUE, then the function displays
 #' the t-SNE map with each cell colored according to the cluster it belongs to.
-#' If `method` argument is "simlr", then it further displays a heatmap of the
-#' similarity matrix calculated by the **SIMLR()** function. If `pdf` is TRUE,
-#' then the function exports the t-SNE plot in a pdf file in the *images*
-#' folder. The file is named "t-SNE_map-X.pdf", where X is the `method`
-#' argument. If `write` is TRUE, then the function writes two text files in the
+#' @details If `method` argument is "simlr", then it further displays a heatmap of the
+#' similarity matrix calculated by the **SIMLR()** function. 
+#' @details If `pdf` is TRUE, then the function exports
+#' the t-SNE plot in a pdf file in the *images* folder. The file is named
+#' "t-SNE_map-X.pdf", where X is the `method` argument.
+#' @details If `write` is TRUE, then the function writes two text files in the
 #' *data* folder. The first one is called "cluster-Y-X.txt", containing the
 #' cluster vector assigning each cell of `data` to a cluster. The second one is
 #' called "tsne-Y-X.txt", containing the coordinates of each cell in the 2D
 #' t-SNE projection. "X" is the `method` argument anf "Y" is the retained number
-#' of clusters. If `most.variables` is TRUE, then the function uses the most 
+#' of clusters. 
+#' @details If `most.variables` is TRUE, then the function uses the most 
 #' variable genes matrix counts if it exists in the object.
+#' @details If the user want to do cluster annotation the classification method
+#' and celltype marker table must be provided.
+#' @details The ` markers` argument must be a table with cell type gene signatures, one
+#' cell type in each column. The column names are the names of the cell types.
+#' @details The *markers.default* table provides an example of this format.
+#' @details The`classification` argument must be one of "by cluster", or "library".
+#' "by cluster" will assign each cluster to a celltype by comparing the overall expression
+#' with markers given in ` markers`
+#' "library" will use the package *insert package name* to perform the labelling.
+#' @details If `write` is TRUE and classification is not equal to "none", 
+#' then the function writes in a second text file a table containing 
+#' probabilities of assignments of each cluster to a cell type for each cell
+#' cluster. This cell type calling is performed as for the individual cells 
+#' without thresholding but based on the cluster average transcriptome.
 #'
 #' @return A SCSRDataModel with cluster definition
 #'
@@ -245,8 +364,12 @@ if (!isGeneric("cellClustering")) {
 #' print("cell Clustering")
 #' obj <- cellClustering(obj)
 
-setMethod("cellClustering", "SCSRDataModel", function(obj, n.cluster = 0,n = 10, most.variables = TRUE,
-                                    method = c("simlr","kmeans"), plot = TRUE, pdf = TRUE,write = TRUE) {
+setMethod("cellClustering", "SCSRDataModel", function(obj, n.cluster = 0,n = 10, 
+                                    most.variables = TRUE, projection.method = "tsne",
+                                    method = c("simlr","kmeans"), 
+                                    classification = c("none", "by cluster", "singler"),
+                                    markers = markers_default, verbose = TRUE,
+                                    plot = TRUE, pdf = FALSE,write = FALSE) {
   
 
     data <- obj@ncounts$matrix
@@ -261,10 +384,10 @@ setMethod("cellClustering", "SCSRDataModel", function(obj, n.cluster = 0,n = 10,
         cat("Cluster definition will be overwritten.\n")
     }
 
-    if (dir.exists("images")==FALSE & pdf==TRUE){
+    if (!dir.exists("images") & pdf){
         dir.create("images")
     }
-    if (dir.exists("data")==FALSE & write==TRUE){
+    if (!dir.exists("data") & write){
       dir.create("data")
     }
     if (n.cluster==0){
@@ -306,8 +429,9 @@ setMethod("cellClustering", "SCSRDataModel", function(obj, n.cluster = 0,n = 10,
         names(final) = c("cluster","t-SNE","numbers")
     }
 
+    classification = match.arg(classification)
     cr=rainbow(max(cluster))
-    if (plot==TRUE){
+    if (plot & classification=="none"){
         if (method=="simlr"){
         pheatmap(log(s$S*10^6+1))
         }
@@ -317,7 +441,7 @@ setMethod("cellClustering", "SCSRDataModel", function(obj, n.cluster = 0,n = 10,
         symbols(x=final[[2]][,1],y=final[[2]][,2],circles=rep(1,nrow(final[[2]])),inches=0.04,bg=cr[cluster],add=TRUE)
         legend("topleft",legend = paste("cluster",seq_len(max(cluster))),fill = cr,cex = 0.7)
     }
-    if (pdf==TRUE){
+    if (pdf){
         pdf(paste("./images/t-SNE_map-",method,".pdf",sep=""))
         plot(x=final[[2]][,1],y=final[[2]][,2],type='n',main="t-SNE Map",xlab="t-SNE1",ylab="t-SNE2",xlim=c(min(final[[2]][,1])*1.5,max(final[[2]][,1])*1.1))
         abline(h=0)
@@ -326,7 +450,7 @@ setMethod("cellClustering", "SCSRDataModel", function(obj, n.cluster = 0,n = 10,
         legend("topleft",legend = paste("cluster",seq_len(max(cluster))),fill = cr,cex = 0.7)
         dev.off()
     }
-    if (write==TRUE){
+    if (write){
         fwrite(data.frame(final[[1]]),paste("./data/cluster-",n.cluster,"-",method,".txt",sep=""),sep="\t")
         fwrite(data.frame(final[[2]]),paste("./data/tsne-",n.cluster,"-",method,".txt",sep=""),sep="\t")
     }
@@ -336,10 +460,221 @@ setMethod("cellClustering", "SCSRDataModel", function(obj, n.cluster = 0,n = 10,
     }
 
     obj@cluster$method <- method
-    obj@cluster$tsne <- final[["t-SNE"]]
+    obj@cell.representation$coordinates <- final[["t-SNE"]]
+    obj@cell.representation$method <- projection.method
     obj@cluster$id <- final$cluster
+    names <- sort(unique(final$cluster), decreasing = F)
+    names(names) <- names
+    obj@cluster$names <- names
+
+    if (classification!="none"){
+        cat("Annotation of calculated clusters.\n")
+        obj <- .clusterClassifying(obj, markers, classification, most.variables, 
+                    plot, write, verbose)
+    }
+
+    
+
     obj
 })
+
+#' Cluster classifier
+#'
+#' Classifies each cluster using cell type specific markers.
+#'
+#' @param obj an object of type SCSRDataModel
+#' @param markers a data frame of cell type signature genes
+#' @param method the method to use for annotation (by cluster or a library)
+#' @param most.variables a logical
+#' @param plot a logical (if TRUE, then plots the number of cells
+#' attributed to one cell type, see below)
+#' @param write a logical
+#' @param verbose a logical
+#'
+#' @return A SCSRDataModel with cluster definition
+
+.clusterClassifying <- function(obj, markers, method, most.variables,  
+                                    plot,write, verbose) {
+  coord <- obj@cell.representation$coordinates
+  coord.method <- obj@cell.representation$method
+  data <- obj@ncounts$matrix
+
+  if( initialOrganism(obj)!="hsapiens" )
+        genes <- unlist(obj@ncounts$initial.orthologs)
+
+    else genes <- rownames(data)
+
+  if (!is.null(obj@ncounts$matrix.mv)&most.variables){
+    data <- obj@ncounts$matrix.mv
+    if( initialOrganism(obj)!="hsapiens" )
+        genes <- unlist(obj@ncounts$initial.orthologs.mv)
+
+    else genes <- rownames(data)
+  }
+
+  if (!dir.exists("cell-classification") & write){
+      dir.create("cell-classification")
+  }
+
+  if (is.null(obj@cluster$id)) {
+        cat("Please assign each cell to a cluster before doing celltype annotation 
+            (for example by using cellClustering function).\n")
+    }else{
+  # Method to assign each cell to a celltype through markers table, then 
+  # conclude for each cluster by assigning it to the celltype in majority
+        if (method == "by cluster"){
+            rownames(data) <- genes
+            res <- .classifyByCluster(data, obj@cluster$id, obj@cluster$names, 
+                markers, write, verbose)
+            c.names = unlist(res[["class"]])
+            names(c.names) <- sort(unique(obj@cluster$id),decreasing = FALSE)
+            obj@cluster$names <- c.names
+            obj@cluster$markers <- markers
+        }else {
+            ### Add option to do the celltype annotation with a specific library
+
+            hpca.se <- celldex::HumanPrimaryCellAtlasData()
+            pred.hesc <- SingleR(test = data, ref = hpca.se, assay.type.test=1,
+                     labels = hpca.se$label.main, de.method="wilcox", clusters = obj@cluster$id)
+            names(pred.hesc$labels) <- rownames(pred.hesc)
+            obj@cluster$names <- pred.hesc$labels
+            obj@cluster$markers <- "HumanPrimaryCellAtlasData"
+
+        }
+
+        if (length(obj@cluster$names)!=max(obj@cluster$id) |
+            grepl("/",paste(obj@cluster$names,collapse =""))){
+            stop("The length of obj@cluster$names must be equal to the number of
+            clusters and must contain no duplicates. The cluster names must not
+            include special characters")
+        }   else if (sum(duplicated(obj@cluster$names))>0){
+            cat("Several clusters were assigned to the same celltype: grouping the clusters
+                as one.")
+            rep <- data.frame(id=as.numeric(names(obj@cluster$names)),
+                name = obj@cluster$names)
+            uniq <- data.frame(new.id=seq(1,length(unique(obj@cluster$names)),1),
+                name=unique(obj@cluster$names))
+            rep <- merge(rep,uniq, by.x="name")
+
+            names <- as.character(uniq$name)
+            names(names) <- uniq$new.id
+            obj@cluster$names <- names
+
+            num <- data.frame(id = obj@cluster$id, index = seq(1,length(obj@cluster$id),1))
+            num <- merge(num, rep, by.x="id")
+            num <- num[order(num$index),]
+            obj@cluster$id <- num$new.id
+
+        }
+    
+        
+        obj@cluster$method <- method
+
+        cr <- rainbow(max(obj@cluster$id))
+
+        if (!is.null(coord)){
+            plot(x=coord[,1],y=coord[,2],type='n',main=paste(coord.method,"by cluster"),
+                xlab=paste(coord.method,"1"),
+                ylab=paste(coord.method,"2"),xlim=c(min(coord[,1])*2,max(coord[,1])*1.05))
+            abline(h=0)
+            abline(v=0)
+            symbols(x=coord[,1],y=coord[,2],circles=rep(1,nrow(coord)),inches=0.04,
+                bg=cr[obj@cluster$id],add=TRUE)
+            legend("topleft",legend=obj@cluster$names,fill=cr,cex=0.75)
+            }
+    }
+    
+
+  obj
+}
+
+
+#' Cluster classification
+#'
+#' Analysis of the clusters composition by a marker based approach.
+#'
+#' @param data A counts matrix
+#' @param cluster A vector of cluster ids
+#' @param c.names A vector with unique cluster names
+#' @param markers a table of cell type signature genes
+#' @param write a logical
+#' @param verbose a logical
+
+.classifyByCluster <- function(data, cluster, c.names, markers, write, verbose) {
+    genes = rownames(data)
+
+    if (!dir.exists("cluster-analysis") & write){
+        dir.create("cluster-analysis")
+    }
+    if (is.null(c.names)){
+        c.names <- paste("cluster",seq_len(max(cluster)))
+    }
+    if (min(cluster)!=1){
+        cluster <- cluster + 1 - min(cluster)
+    }
+    
+    n.cluster <- max(cluster)
+    
+    class <- list()
+    length(class) <- n.cluster
+    z <- c(seq_len(n.cluster))
+    final.2 <- NULL
+    types <- NULL
+  
+    final <- matrix(0,nrow=n.cluster,ncol=ncol(markers))
+    colnames(final) <- colnames(markers)
+    rownames(final) <- c.names
+    for (i in z){
+      tmp <- NULL
+      for (j in seq_len(ncol(markers))){
+        m.genes <- markers[,j][markers[,j] %in% genes]
+        tmp <- c(tmp,sum(rowSums(data.frame(data[m.genes,
+                                                cluster==i]))/sum(cluster==i))/
+                  length(m.genes))
+        tmp[is.na(tmp)] <- 0
+      }
+      final[i,] <- as.numeric(tmp)
+    }
+    final <- final/rowSums(final,na.rm=TRUE)
+    final.2 <- final
+    m <- apply(final.2,1,function(x) (max(x)-min(x))/2)
+    for (i in z){
+      final.2[i,][final.2[i,]<m[i]] <- 0
+      c.type <- names(which(final.2[i,]!=0))
+      if (length(c.type)==1){
+        if (verbose){
+          cat(paste(c.names[i], ": ", c.type, sep=""),fill=TRUE)
+        }
+        class[[i]] <- c.type
+      }
+      if (length(c.type)==2){
+        if (verbose){
+          cat(paste(c.names[i], ": ", c.type[1]," or ",c.type[2],sep=""),fill=TRUE)
+        }
+        class[[i]] <- paste(c.type[1]," or ",c.type[2],sep="")
+      }
+      if (length(c.type)>2){
+        if (verbose){
+          cat(paste(c.names[i], ": Unconclusive (more than 2 cell types
+                    attributed to the cluster)",sep=""),fill=TRUE)
+        }
+        class[[i]] <- "Undefined"
+      }
+    }
+    names(class) <- c.names
+    pheatmap(t(final.2),cluster_cols=FALSE)
+    types <- do.call(rbind,class)
+    if (write){
+      fwrite(data.frame(final),paste("./cluster-analysis/cluster_types.txt",
+                                     sep=""),sep="\t")
+    }
+  res <- list(class,types,final.2)
+  names(res) <- c("class","types","matrix")
+
+
+  res 
+  
+}
 
 # Cell classification ===========================================
 if (!isGeneric("cellClassifying")){
@@ -352,11 +687,12 @@ if (!isGeneric("cellClassifying")){
 
 #' Cell classifier
 #'
-#' Classifies each cellga using cell type specific markers.
+#' Classifies each cell using cell type specific markers.
 #'
 #' @param obj an object of type SCSRDataModel
 #' @param markers a data frame of cell type signature genes
-#' @param plot.details a logical (if TRUE, then plots the number of cells
+#' @param projection.method "tsne"
+#' @param plot a logical (if TRUE, then plots the number of cells
 #' attributed to one cell type, see below)
 #' @param most.variables a logical
 #' @param write a logical
@@ -365,12 +701,9 @@ if (!isGeneric("cellClassifying")){
 #' @details The ` markers` argument must be a table with cell type gene signatures, one
 #' cell type in each column. The column names are the names of the cell types.
 #' @details The *markers.default* table provides an example of this format.
-#' @details If ` tsne` is not provided in the object, then the function will just not display 
-#' the cells on the t-SNE. Although t-SNE maps are widely used to display cells on a 2D
-#' projection, the user can provide any table with two columns and a number of
-#' rows equal to the number of columns of `data` (e.g. the two first components
-#' of a PCA).
-#' @details If ` plot.details` is TRUE, then the function plots the number of cells
+#' @details If no projection is provided in the object, then the function will not display 
+#' the cells. 
+#' @details If ` plot` is TRUE, then the function plots the number of cells
 #' attributed to a single cell type as a function of the threshold applied to
 #' the normalized gene signature average.
 #' @details If `most.variables` is TRUE, then the function uses the most variable genes
@@ -387,7 +720,7 @@ if (!isGeneric("cellClassifying")){
 #' by the function to maximize the number of cells that are assigned to a single
 #' cell type and all the cells (columns) assigned to 0 or >1 cell types are
 #' discarded. The number of cells assigned to a single type depending on a\*
-#' can be plotted by using the parameter `plot.details=TRUE`. (3) A cluster
+#' can be plotted by using the parameter `plot=TRUE`. (3) A cluster
 #' vector assigning each cell to a cell type. Note that a supplementary,
 #' virtual cluster is created to collect all the cells assigned to 0 or >1
 #' types. This virtual cluster is named "undefined". (4) A table associating
@@ -402,17 +735,24 @@ if (!isGeneric("cellClassifying")){
 #' data <- matrix(runif(1000,0,1),nrow=50,ncol=20)
 #' rownames(data) <- paste("gene",seq_len(50))
 #' obj <- dataPrepare(data)
-#' print("cell Clustering")
-#' obj <- cellClustering(obj)
 #'
 #' markers <- matrix(paste("gene",seq_len(10)),ncol=5,nrow=2)
 #' colnames(markers) <- paste("type",seq_len(5))
 #' obj <- cellClassifying(obj, markers = markers)
-setMethod("cellClassifying", "SCSRDataModel", function(obj, markers = markers_default,
-                                                    plot.details = FALSE, most.variables = TRUE,
-                                                    write = TRUE, verbose = TRUE) {
-  tsne <- obj@cluster$tsne
+
+setMethod("cellClassifying", "SCSRDataModel", function(obj, markers = markers_default, 
+                                                    projection.method = "tsne",
+                                                    most.variables = TRUE, plot = TRUE, 
+                                                    write = FALSE, verbose = TRUE) {
+  coord <- obj@cell.representation$coordinates
+  coord.method <- obj@cell.representation$method
   data <- obj@ncounts$matrix
+
+
+if (!is.null(obj@cluster$id)){
+        cat("Cluster definition will be overwritten.\n")
+}
+
   if( initialOrganism(obj)!="hsapiens" )
         genes <- unlist(obj@ncounts$initial.orthologs)
 
@@ -428,116 +768,222 @@ setMethod("cellClassifying", "SCSRDataModel", function(obj, markers = markers_de
     else genes <- rownames(data)
   }
 
-  if (dir.exists("cell-classification")==FALSE & write==TRUE){
+  if (!dir.exists("cell-classification") & write){
       dir.create("cell-classification")
   }
-  #rownames(data) <- genes
-  n.types <- ncol(markers)
 
-  tmp <- data[as.character(unlist(markers))[as.character(unlist(markers)) %in%
+  if (is.null(coord)&projection.method=="tsne"){
+    cat("Calculation of 2D projection.\n")
+        data2 <- data[rowSums(data)>0,]
+        pca <- prcomp(t(data2),center=TRUE,scale.=TRUE)
+        v <- (pca$sdev^2)/(sum(pca$sdev^2))
+        n <- min(which(diff(v)>-10^-4))
+        if (n==0 | identical(n, integer(0))){
+            n<-round(ncol(pca$x)/2)
+        }
+        pca <- pca$x[,seq_len(n)]
+        tsne <- Rtsne(pca)
+        coord <- tsne$Y
+        coord.method <- projection.method
+        obj@cell.representation$coordinates <- coord
+        obj@cell.representation$method <- coord.method
+  }
+  
+  # Method to assign each cell to a celltype through markers table, then 
+  # conclude for each cluster by assigning it to the celltype in majority
+    rownames(data) <- genes
+    
+    res <- .classifyByCell(data, coord, coord.method, markers, plot, write, verbose)
+    celltypes <- res[["cluster"]]
+    celltypes.names <- res[["c.names"]]
+
+    obj@cluster$id <- res[["cluster"]]
+    c.names <- res[["c.names"]]
+    names(c.names) <- 1:max(obj@cluster$id)
+    obj@cluster$names <- c.names
+    
+    
+    obj@cluster$method <- "by cell"
+    
+
+  obj
+})
+
+
+#' Cell classifier
+#'
+#' Classifies each cellga using cell type specific markers.
+#'
+#' @param data    A counts matrix.
+#' @param coordinates    A dataframe with projection coordinates.
+#' @param projection    A character string with the projection method.
+#' @param markers    A dataframe with the markers of celltypes.
+#' @param plot    A logical.
+#' @param write    A logical.
+#' @param verbose    A logical.
+#' 
+#' @return Return a list with each cell assignment cluster and
+#' other informations.  
+
+.classifyByCell <- function(data, coordinates, projection, markers, plot, write, verbose){
+    n.types <- ncol(markers)
+    genes <- rownames(data)
+
+    tmp <- data[as.character(unlist(markers))[as.character(unlist(markers)) %in%
                                              genes],]
 
-  if (is.null(dim(tmp))==TRUE){
-    stop("Not enough markers genes to pursue the cell classification")
-  }
-  final <- matrix(0,ncol=ncol(tmp),nrow=(ncol(markers)))
+    if (is.null(dim(tmp))){
+        stop("Not enough markers genes to pursue the cell classification")
+    }
+    final <- matrix(0,ncol=ncol(tmp),nrow=(ncol(markers)))
 
-  for (i in seq_len(n.types)){
-    m.genes <- markers[,i][markers[,i] %in% genes]
-    if (!is.null(dim(tmp[m.genes,]))) final[i,] <- colSums(tmp[m.genes,])/length(m.genes)
-    else final[i,] <- NA
-  }
-  final[is.na(final)] <- 0
-  final[,colSums(final)!=0] <- apply(final[,colSums(final)!=0],2,function(x)
-    x/sum(x))
-  # final <- round(final*1000)/10
-  rownames(final) <- colnames(markers)
-  colnames(final) <- colnames(data)
-  l <- matrix(0,101,2)
-  q <- 0
-  for (n in seq(0.01,1,0.01)){
-    q <- q+1
-    f <- final
-    f[f<n] <- 0
-    l[q+1,1] <- n
-    l[q+1,2] <- sum(apply(f,2,function(x) sum(x==0)==(n.types-1)))
-  }
-  seuil <- max(l[which(l[,2]==max(l[,2])),1])
-  m <- matrix(0,(n.types+1),2)
-  for (n in 0:n.types){
-    f <- final
-    f[f<seuil] <- 0
-    f <- matrix(f[,apply(f,2,function(x) sum(x==0)==n)],nrow=n.types)
-    m[n+1,1] <- n
-    m[n+1,2] <- sum(apply(f,2,function(x) sum(x==0)==n))
-  }
-  m <- matrix(m[m[,2]!=0,],ncol=2)
+    for (i in seq_len(n.types)){
+        m.genes <- markers[,i][markers[,i] %in% genes]
+        if (!is.null(dim(tmp[m.genes,]))) final[i,] <- colSums(tmp[m.genes,])/length(m.genes)
+        else final[i,] <- NA
+      }
+    final[is.na(final)] <- 0
+    final[,colSums(final)!=0] <- apply(final[,colSums(final)!=0],2,function(x)
+        x/sum(x))
+    # final <- round(final*1000)/10
+    rownames(final) <- colnames(markers)
+    colnames(final) <- colnames(data)
+    l <- matrix(0,101,2)
+    q <- 0
+    # Counts the number of cells for which only one celltype is prevalent 
+    # at a certain threshold
+    for (n in seq(0.01,1,0.01)){
+        q <- q+1
+        f <- final
+        f[f<n] <- 0
+        l[q+1,1] <- n
+        l[q+1,2] <- sum(apply(f,2,function(x) sum(x==0)==(n.types-1)))
+    }
+    # Select the max threshold for which the highest number of cells is 
+    # assigned to only one celltype
+    seuil <- max(l[which(l[,2]==max(l[,2])),1])
+    m <- matrix(0,(n.types+1),2)
+    for (n in 0:n.types){
+        f <- final
+        f[f<seuil] <- 0
+        f <- matrix(f[,apply(f,2,function(x) sum(x==0)==n)],nrow=n.types)
+        m[n+1,1] <- n
+        m[n+1,2] <- sum(apply(f,2,function(x) sum(x==0)==n))
+    }
+    m <- matrix(m[m[,2]!=0,],ncol=2)
 
-  res <- list()
-  final.s <- final
-  final.s[final.s<seuil] <- 0
-  res[[1]] <- final.s[,apply(final.s,2,function(x) sum(x==0)==(n.types-1))]
-  res[[3]] <- final
-  final[!apply(final,2,function(x) x==max(x))] <- 0
-  res[[2]] <- final
-  h <- pheatmap::pheatmap(res[[1]],cluster_rows=TRUE,cluster_cols=TRUE,
+    res <- list()
+    final.s <- final
+    final.s[final.s<seuil] <- 0
+    # Select columns (ie. cells) for which only one celltype is assigned
+    # with the selected threshold
+    res[[1]] <- final.s[,apply(final.s,2,function(x) sum(x==0)==(n.types-1))]
+    res[[3]] <- final
+    final[!apply(final,2,function(x) x==max(x))] <- 0
+    res[[2]] <- final
+    h <- pheatmap::pheatmap(res[[1]],cluster_rows=TRUE,cluster_cols=TRUE,
                          show_colnames=FALSE)
 
-  nn <- seq_len(length(rownames(res[[1]])[rowSums(res[[1]])!=0]))
-  names(nn) <- rownames(res[[1]])[rowSums(res[[1]])!=0]
-  cluster <- unlist(lapply(apply(final.s,2,function(x) names(x[x>0])),
+    # Number of celltypes assigned directly to at least one cell
+    nn <- seq_len(length(rownames(res[[1]])[rowSums(res[[1]])!=0]))
+    names(nn) <- rownames(res[[1]])[rowSums(res[[1]])!=0]
+    # Assign a cluster to each cell for which only one celltype could be assigned
+    cluster <- unlist(lapply(apply(final.s,2,function(x) names(x[x>0])),
                           function(x) if(length(x)==1){
                             return(nn[as.character(x)])} else {return(0)}))
-  cluster[cluster==0]=max(cluster)+1
+    cluster[cluster==0]=max(cluster)+1
+    res[[4]] <- cluster
+    res[[5]] <- c(rownames(res[[1]][rowSums(res[[1]])>0,]),"Undefined")
 
-  if (sum(m[,2]!=0)==1){
-    n <- names(nn)
-  } else {
-    n <- c(names(nn), "Undefined cells")
-  }
-  cr <- c(rainbow(max(cluster)-1),"gray")
-  res[[4]] <- cluster
-  # res[[5]] <- h
-  res[[5]] <- c(rownames(res[[1]][rowSums(res[[1]])>0,]),"undefined")
-  names(res) <- c("tresh_mat","max_mat","raw_mat","cluster","c.names")
-  d <- data.frame(Cell_type=c(rownames(res[[1]]),"undefined"),
+    if (sum(m[,2]!=0)==1){
+        n <- names(nn)
+    } else {
+        n <- c(names(nn), "Undefined cells")
+    }
+    d <- data.frame(Cell_type=c(rownames(res[[1]]),"Undefined"),
                Number_of_cells=c(apply(res[[1]],1,function(x) sum(x!=0)),
                                  ncol(res[[3]])-ncol(res[[1]])))
-  d <- d[d$Number_of_cells!=0,]
-  rownames(d) <- paste("cluster",seq_len(nrow(d)))
+    d <- d[d$Number_of_cells!=0,]
+    rownames(d) <- paste("cluster",seq_len(nrow(d)))
 
-
-  if (verbose==TRUE){
-    cat(paste("A threshold of",round(seuil*1000)/10,"% maximizes the number of
+    if (verbose){
+        cat(paste("A threshold of",round(seuil*1000)/10,"% maximizes the number of
               cells assigned to one cell type"),fill=TRUE)
-    for (i in (nrow(m)):1){
-      cat(paste(m[i,2],"cell(s) or",round(m[i,2]*1000/ncol(data))/10,
+        for (i in (nrow(m)):1){
+            cat(paste(m[i,2],"cell(s) or",round(m[i,2]*1000/ncol(data))/10,
                 "% identified to",(n.types)-m[i,1],"cell type(s)"),sep=" ",
           fill=TRUE)
+        }
+        cat(" ",fill=TRUE)
     }
-    cat(" ",fill=TRUE)
-    print(d)
-  }
+    if (sum(d$Number_of_cells==1)>0){
+        d$NewCell_type <- d$Cell_type
+        d$NewCell_type[d$Number_of_cells==1] <- "Undefined"
+        d$Id_ini <- seq(1,nrow(d),1)
 
-  if (is.null(tsne)==FALSE){
-    plot(x=tsne[,1],y=tsne[,2],type='n',main="t-SNE Map",xlab="t-SNE1",
-         ylab="t-SNE2",xlim=c(min(tsne[,1])*2,max(tsne[,1])*1.05))
-    abline(h=0)
-    abline(v=0)
-    symbols(x=tsne[,1],y=tsne[,2],circles=rep(1,nrow(tsne)),inches=0.04,
+        if ("Undefined"%in%d$NewCell_type){
+            name_new <- c(unique(d$NewCell_type[d$NewCell_type!="Undefined"]),
+                "Undefined")
+        }else{
+            name_new <- unique(d$NewCell_type)
+        }
+        new <- data.frame(NewCell_type = name_new,
+                        NewId = seq(1,length(unique(d$NewCell_type)),1))
+        
+        d <- merge(d, new, by.x = "NewCell_type", sort = FALSE)
+        d <- d[order(d$Id_ini),]
+
+        cluster_df <- data.frame(Id_ini = cluster)
+        cluster_df$id <- seq(1,nrow(cluster_df),1)
+        cluster_df <- merge(cluster_df, d, by.x = "Id_ini", sort = FALSE)
+        cluster_df <- cluster_df[order(cluster_df$id),]
+        cluster <- cluster_df$NewId
+        c.names <- new$NewCell_type
+        names(c.names) <- new$NewId
+
+        cat(paste(max(d$Id_ini)-max(d$NewId),"clusters contained only 1 cell
+              and are reassigned to 'Undefined'"),fill=TRUE)
+
+        d[d$Cell_type=="Undefined","Number_of_cells"] <- sum(d$Number_of_cells[
+            d$NewCell_type=="Undefined"])
+
+        d <- d[d$Cell_type%in%c.names,c("Cell_type","Number_of_cells")]
+        
+        rownames(d) <- paste("cluster",seq_len(nrow(d))) 
+        res[[4]] <- cluster 
+        res[[5]] <- c.names
+
+        n <- c.names
+
+    }
+    
+
+    cr <- c(rainbow(max(cluster)-1),"gray")
+    
+    
+    names(res) <- c("tresh_mat","max_mat","raw_mat","cluster","c.names")
+
+    if(verbose) print(d)
+    
+    if (!is.null(coordinates)){
+        plot(x=coordinates[,1],y=coordinates[,2],type='n',main="t-SNE Map Cell by cell",xlab="t-SNE1",
+         ylab="t-SNE2",xlim=c(min(coordinates[,1])*2,max(coordinates[,1])*1.05))
+        abline(h=0)
+        abline(v=0)
+        symbols(x=coordinates[,1],y=coordinates[,2],circles=rep(1,nrow(coordinates)),inches=0.04,
             bg=cr[cluster],add=TRUE)
-    legend("topleft",legend=n,fill=cr,cex=0.75)
-  }
-  if (plot.details==TRUE){
-    plot(l,xlab="Threshold (%)",ylab="Number of cells",
+        legend("topleft",legend=n,fill=cr,cex=0.75)
+    }
+    if (plot){
+        plot(l,xlab="Threshold (%)",ylab="Number of cells",
          main= "Attribution of one cell to one cell type",type='l')
-    abline(v=l[l[,1]==seuil,1], col="red", lty=2)
-    symbols(l[l[,1]==seuil,1],l[l[,1]==seuil,2],circles=1,inches=0.05,
+        abline(v=l[l[,1]==seuil,1], col="red", lty=2)
+        symbols(l[l[,1]==seuil,1],l[l[,1]==seuil,2],circles=1,inches=0.05,
             bg="red",fg="red",add=TRUE)
-    text(x=l[l[,1]==seuil,1],y=l[l[,1]==seuil,2]-0.07*(max(l)),
+        text(x=l[l[,1]==seuil,1],y=l[l[,1]==seuil,2]-0.07*(max(l)),
          labels=paste(seuil,"%"),offset=20)
-  }
-  if (write==TRUE){
+    } 
+  if (write){
     fwrite(data.frame(cbind(rownames(res[[1]]),res[[1]])),
            "cell-classification/threshold_class_matrix.txt",sep="\t")
     fwrite(data.frame(cbind(rownames(res[[3]]),res[[3]])),
@@ -549,77 +995,37 @@ setMethod("cellClassifying", "SCSRDataModel", function(obj, markers = markers_de
     c.names <- res[[5]]
   }
 
-  obj@cell.classification$id <- res$cluster
-  obj@cell.classification$names <- res$c.names
-  names(obj@cell.classification$names) = seq(1:length(res$c.names))
-  obj@cell.classification$nb.cells <- as.numeric(table(obj@cell.classification$id))
-  names(obj@cell.classification$nb.cells) <- obj@cell.classification$names
-  obj@cell.classification$markers <- lapply(as.list(markers[,res$c.names[res$c.names!="undefined"]]),
-    function(z){ z[!is.na(z) & z != ""]})
-  obj
-})
-
-# Cluster analysis ===========================================
-if (!isGeneric("clusterAnalysis")) {
-    if (is.function("clusterAnalysis"))
-        fun <- clusterAnalysis
-    else
-        fun <- function(obj, ...) standardGeneric("clusterAnalysis")
-    setGeneric("clusterAnalysis", fun)
+  res
 }
 
-#' Cluster analysis
+if (!isGeneric("dgeCluster")) {
+    if (is.function("dgeCluster"))
+        fun <- dgeCluster
+    else
+        fun <- function(obj, ...) standardGeneric("dgeCluster")
+    setGeneric("dgeCluster", fun)
+}
+
+#' Differential Gene Expression
 #'
 #' Analysis of the differentially expressed genes in the clusters
-#' and their composition by a marker based approach.
 #'
-#' @param obj an object of type SCSRDataModel
-#' @param dif.exp a logical (if TRUE, then computes the diferential gene
-#' expression between the clusters using **edgeR**)
-#' @param s.pval a value, a fixed p-value threshold
-#' @param markers a table of cell type signature genes
+#' @param obj A SCSRDataModel object
+#' @param s.pval A pvalue threshold
 #' @param most.variables a logical
-#' @param write a logical
-#' @param verbose a logical
+#' @param write A logical
+#' @param verbose A logical
+#' @param plot A logical
+#' 
+#' @details Computes the diferential gene expression
+#' between the clusters using **edgeR**)
+#' @details If `most.variables` is TRUE, then the function uses the 
+#' most variable genes matrix counts if it exists in the object.
+#' @details If `write` is TRUE, then the
+#' function writes a text file named "table_dge_X.txt", where X is the 
+#' cluster name, that contains the list of differentially expressed genes. 
 #'
-#' @details If `dif.exp` is TRUE, then the function uses **edgeR** functions
-#' **glmFit()** and **glmRT()** to find differentially expressed genes between
-#' one cluster and all the other columns of `data`.
-#' @details
-#' If `dif.exp` is FALSE, then
-#' the function skips the differential gene analysis.
-#' @details
-#' If `c.names` is not set in the object,
-#' the clusters will be named from 1 to the maximum number of
-#' clusters (cluster 1, cluster 2, ...). The user can exploit the `c.names`
-#' vector in the list returned by the **cell_classifier()** function for this
-#' purpose. The user can also provide her own cluster names.
-#' @details
-#' `s.pval`  is the
-#' adjusted (Benjamini-Hochberg) p-value threshold imposed to gene differential
-#' expression.
-#' @details
-#' If `markers` is set, it must be a table with gene signatures for
-#' one cell type in each column. The column names are the names of the cell
-#' types. If no markers table is set, the function will use the one present in the object.
-#' @details
-#' If `markers` is not provided, then the function skips the cluster
-#' cell type calling step.
-#' @details
-#' If `write` and `dif.exp` are both TRUE, then the
-#' function writes a text file named "table_dge_X.txt", where X is the cluster
-#' name, that contains the list of differentially expressed genes.
-#' @details 
-#' If `most.variables` is TRUE, then the function uses the most variable genes
-#' matrix counts if it exists in the object.
-#' @details
-#' If `write` is TRUE and `markers` is provided, then the function writes in a second text
-#' file a table containing probabilities of assignments of each cluster to a
-#' cell type for each cell cluster. This cell type calling is performed as for
-#' the individual cells without thresholding but based on the cluster average
-#' transcriptome.
-#'
-#' @return A SCSRDataModel with cluster analysis
+#' @return A SCSRDataModel with cluster definition
 #'
 #' @export
 #'
@@ -630,76 +1036,57 @@ if (!isGeneric("clusterAnalysis")) {
 #' obj <- dataPrepare(data)
 #' print("cell Clustering")
 #' obj <- cellClustering(obj)
-#' obj <- clusterAnalysis(obj)
+#' obj <- dgeCluster(obj)
 
+setMethod("dgeCluster", "SCSRDataModel", function(obj, s.pval = 10^-2,
+                                                most.variables = TRUE, write = FALSE, 
+                                                verbose = TRUE, plot = TRUE) {
 
-setMethod("clusterAnalysis", "SCSRDataModel", function(obj, markers = NULL, dif.exp = TRUE,
-                                                    s.pval=10^-2, most.variables = TRUE,
-                                                    write = TRUE, verbose = TRUE) {
-
-
-if (is.null(markers)&!is.null(obj@dge.cluster$markers)){
-    markers <- as.data.frame(do.call(cbind, obj@dge.cluster$markers))
-    for (c in names(markers)){
-        markers[,c][duplicated(markers[,c])] <- NA
+    
+    if (!dir.exists("cluster-analysis") & write){
+        dir.create("cluster-analysis")
     }
-}else if (is.null(obj@dge.cluster$markers)){
-    obj@dge.cluster$markers <- lapply(as.list(markers),
-        function(z){ z[!is.na(z) & z != ""]})
-}
 
-cluster <- obj@cluster$id
-c.names <- obj@cluster$names
-data <- obj@ncounts$matrix
-if( initialOrganism(obj)!="hsapiens" )
+    data <- obj@ncounts$matrix
+
+    if( initialOrganism(obj)!="hsapiens" )
         genes <- unlist(obj@ncounts$initial.orthologs)
 
     else genes <- rownames(data)
 
-  if (!is.null(obj@ncounts$matrix.mv)&most.variables){
-    cat("Matrix of most variable genes used. To use the whole matrix set most.variables 
+    if (!is.null(obj@ncounts$matrix.mv)&most.variables){
+        cat("Matrix of most variable genes used. To use the whole matrix set most.variables 
         parameter to FALSE.\n")
-    data <- obj@ncounts$matrix.mv
-    if( initialOrganism(obj)!="hsapiens" )
-        genes <- unlist(obj@ncounts$initial.orthologs.mv)
+        data <- obj@ncounts$matrix.mv
+        if( initialOrganism(obj)!="hsapiens" )
+            genes <- unlist(obj@ncounts$initial.orthologs.mv)
 
-    else genes <- rownames(data)
-  }
+        else genes <- rownames(data)
+    }
+    cluster <- obj@cluster$id
+    c.names <- obj@cluster$names
 
-if (dir.exists("cluster-analysis")==FALSE & write==TRUE){
-    dir.create("cluster-analysis")
-  }
-  if (is.null(c.names)==TRUE){
-    c.names <- paste("cluster",seq_len(max(cluster)))
-  }
-  if (min(cluster)!=1){
-    cluster <- cluster + 1 - min(cluster)
-  }
-  if (length(c.names)!=max(cluster) | sum(duplicated(c.names))>0 |
-      grepl("/",paste(c.names,collapse =""))){
-    stop("The length of c.names must be equal to the number of
-        clusters and must contain no duplicates. The cluster names must not
-        include special characters")
-  }
-  # rownames(data) <- genes
-  n.cluster <- max(cluster)
-  z <- c(seq_len(n.cluster))
-  class <- list()
-  length(class) <- n.cluster
-  diff.genes <- list()
-  final.2 <- NULL
-  types <- NULL
-  k <- 0
-  v <- NULL
-  if (dif.exp==TRUE){
+    if (!is.null(obj@ncounts$matrix.mv)&most.variables){
+        cat("Matrix of most variable genes used. To use the whole matrix set most.variables 
+            parameter to FALSE.\n")
+        data <- obj@ncounts$matrix.mv
+    }
+
+    genes <- rownames(data)
+    diff.genes <- list()
+    z <- seq(length(c.names))
+    k <- 0
+    v <- NULL
+
     dge <- DGEList(data,genes=genes)
     dge <- calcNormFactors(dge)
-    if (verbose==TRUE){
+
+    if (verbose){
       cat("edgeR differential gene expression (dge) processing:",fill=TRUE)
     }
 
     for (i in z){
-      if (verbose==TRUE){
+      if (verbose){
         cat(paste("Looking for differentially expressed genes in", c.names[i]),
             fill=TRUE)
       }
@@ -730,77 +1117,39 @@ if (dir.exists("cluster-analysis")==FALSE & write==TRUE){
         }
       }
     }
-    if (is.null(v)==TRUE){
+    if (is.null(v)){
       names(diff.genes) <- c.names
     } else {
       names(diff.genes) <- c.names[-v]
     }
-  }
+    
+    obj@dge.cluster$genes <- diff.genes
+    obj@dge.cluster$param <- list(s.pval = s.pval)
 
-  if (is.null(markers)==FALSE){
-    final <- matrix(0,nrow=n.cluster,ncol=ncol(markers))
-    colnames(final) <- colnames(markers)
-    rownames(final) <- c.names
-    for (i in z){
-      tmp <- NULL
-      for (j in seq_len(ncol(markers))){
-        m.genes <- markers[,j][markers[,j] %in% genes]
-        tmp <- c(tmp,sum(rowSums(data.frame(data[m.genes,
-                                                cluster==i]))/sum(cluster==i))/
-                  length(m.genes))
-        tmp[is.na(tmp)] <- 0
-      }
-      final[i,] <- as.numeric(tmp)
-    }
-    final <- final/rowSums(final,na.rm=TRUE)
-    final.2 <- final
-    m <- apply(final.2,1,function(x) (max(x)-min(x))/2)
-    for (i in z){
-      final.2[i,][final.2[i,]<m[i]] <- 0
-      c.type <- names(which(final.2[i,]!=0))
-      if (length(c.type)==1){
-        if (verbose==TRUE){
-          cat(paste(c.names[i], ": ", c.type, sep=""),fill=TRUE)
-        }
-        class[[i]] <- c.type
-      }
-      if (length(c.type)==2){
-        if (verbose==TRUE){
-          cat(paste(c.names[i], ": ", c.type[1],"/",c.type[2],sep=""),fill=TRUE)
-        }
-        class[[i]] <- paste(c.type[1],"/",c.type[2],sep="")
-      }
-      if (length(c.type)>2){
-        if (verbose==TRUE){
-          cat(paste(c.names[i], ": Unconclusive (more than 2 cell types
-                    attributed to the cluster)",sep=""),fill=TRUE)
-        }
-        class[[i]] <- "Undefined"
-      }
-    }
-    names(class) <- c.names
-    pheatmap(t(final.2),cluster_cols=FALSE)
-    types <- do.call(rbind,class)
-    if (write==TRUE){
-      fwrite(data.frame(final),paste("./cluster-analysis/cluster_types.txt",
-                                     sep=""),sep="\t")
-    }
-  }
-  res <- list(diff.genes,class,types,final.2,s.pval)
-  names(res) <- c("diff.genes","class","types","matrix", "s.pval")
+    if(plot){
+        cat("Plotting the 50 genes with highest log fold change for each cluster.",
+              fill=TRUE)
+        clustersAnnot <- data.frame(id = cluster, index = seq(1,length(cluster),1))
+        annot <- data.frame(id = names(c.names), name = c.names)
+        clustersAnnot <- merge(clustersAnnot, annot, by.x = "id", order = FALSE)
+        clustersAnnot <- clustersAnnot[order(clustersAnnot$id),]
+        clustersAnnot <- data.frame(cluster = clustersAnnot$name)
 
-  if (!is.null(markers)){
-    if (!is.null(obj@cluster$names)) cat("Cluster names will be overwritten.\n")
-    obj@cluster$names <- unlist(class)
-    names(obj@cluster$names) <- unlist(strsplit(names(class),"cluster "))[seq_len(
-        length(names(class)))*2]
-  }
-  obj@dge.cluster$genes <- diff.genes
-  names(obj@dge.cluster$genes) <- unlist(strsplit(names(diff.genes),"cluster "))[seq_len(
-    length(names(diff.genes)))*2]
-  obj@dge.cluster$param <- list(s.pval = s.pval)
+        pdata <- data[unlist(lapply(diff.genes, function(x) 
+            x[order(x$logFC,decreasing = T),][1:min(nrow(x),50),"genes"])),
+        order(cluster)]
+        rownames(clustersAnnot) <- colnames(pdata)
 
-  obj
+        col <- brewer.pal(length(c.names), "Paired")
+        names(col) = c.names
+        color <- list(cluster = col)
+        pheatmap(pdata, cluster_rows = F, cluster_cols = F, 
+            show_rownames =F, show_colnames =  F,
+            main = "Main DE genes per cluster",
+            annotation_col = clustersAnnot,  annotation_colors = color)
+        
+    }
+    obj
 })
 
 
@@ -826,6 +1175,7 @@ if (!isGeneric("cellSignaling")) {
 #' @param tol a tolerance parameter for balancing "autocrine|paracrine"
 #' interactions to the "autocrine" or "paracrine" group
 #' @param most.variables a logical
+#' @param addLR a dataframe with 2 columns
 #' @param write a logical
 #' @param verbose a logical
 #'
@@ -865,6 +1215,9 @@ if (!isGeneric("cellSignaling")) {
 #' @details 
 #' If `most.variables` is TRUE, then the function uses the most variable genes
 #' matrix counts if it exists in the object.
+#' @details 
+#' The `addLR` allows the user to add LR interaction that they want to study.
+#' It must be a dataframe with one column "ligand" and one column "receptor".
 #' @details
 #' If `write` is TRUE, then the function writes a text file that reports the
 #' interactions in the *cell-signaling* folder. This file is a 4-column table:
@@ -895,7 +1248,8 @@ if (!isGeneric("cellSignaling")) {
 
 setMethod("cellSignaling", "SCSRDataModel", function(obj, 
                             int.type = c("paracrine","autocrine"),s.score = 0.5, 
-                            logFC = log2(1.5), tol = 0, most.variables = TRUE, write = TRUE, verbose = TRUE) {
+                            logFC = log2(1.5), tol = 0, most.variables = TRUE, 
+                            addLR = NULL, write = FALSE, verbose = TRUE) {
 
     cluster <- obj@cluster$id
     c.names <- obj@cluster$names
@@ -913,10 +1267,10 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
         data <- obj@ncounts$matrix.mv
     }
 
-    if (dir.exists("cell-signaling")==FALSE & write==TRUE){
+    if (!dir.exists("cell-signaling") & write){
         dir.create("cell-signaling")
       }
-      if (is.null(c.names)==TRUE){
+      if (is.null(c.names)){
         c.names <- paste("cluster",seq_len(max(cluster)))
       }
       if (min(cluster)!=1){
@@ -932,8 +1286,49 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
 
     
       z <- seq_len(max(cluster))
+      if (species != "hsapiens"){
+        ortho <- data.frame(Hsapiens = rownames(object@ncounts$matrix),
+                              species = object@ncounts$initial.orthologs)
+        lig <- data.frame(Hsapiens = LRdb$ligand, id = seq(1, nrow(LRdb), 1))
+        rec <- data.frame(Hsapiens = LRdb$receptor, id = seq(1, nrow(LRdb), 1))
+        lig <- merge(lig, ortho, by.x = "Hsapiens", order = FALSE)
+        lig <- lig[order(lig$id),]
+        rec <- merge(rec, ortho, by.x = "Hsapiens", order = FALSE)
+        rec <- rec[order(rec$id),]
+        LRdb$ligand <- lig$species
+        LRdb$receptor <- rec$species
+      }
+      
+
+      if (!is.null(addLR)){
+        if (!is.data.frame(addLR)|ncol(addLR)<2){
+            cat("Please input the ligand-receptors interactions you want to add as
+                a two-column dataframe.\n")
+        }else {
+            if (!any(addLR[,1]%in%genes)){
+              if (species != "hsapiens"){
+                    ortho <- data.frame(Hsapiens = rownames(object@ncounts$matrix),
+                                        species = object@ncounts$initial.orthologs)
+                    lig <- data.frame(Hsapiens = addLR[,1], id = seq(1, nrow(addLR), 1))
+                    rec <- data.frame(Hsapiens = addLR[,2], id = seq(1, nrow(addLR), 1))
+                    lig <- merge(lig, ortho, by.x = "Hsapiens", order = FALSE)
+                    lig <- lig[order(lig$id),]
+                    rec <- merge(rec, ortho, by.x = "Hsapiens", order = FALSE)
+                    rec <- rec[order(rec$id),]
+                    addLR[,1] <- lig$species
+                    addLR[,2] <- rec$species
+                }
+        }
+        add <- cbind(addLR[,1:2],data.frame(matrix(NA,
+                                    ncol=ncol(LRdb)-2),nrow=nrow(addLR)))
+        names(add) <- names(LRdb)
+        LRdb <- rbind(LRdb, add)
+        LRdb <- unique(LRdb)
+        }
+      }
       lig <- unique(LRdb$ligand)
       rec <- unique(LRdb$receptor)
+
       data <- data.frame(data)
       data <- data[rowSums(data)>0,]
       med <- sum(data)/(nrow(data)*ncol(data))
@@ -941,13 +1336,13 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
       out <- list()
       ## Autocrine -------------------
       if (int.type=="autocrine"){
-        if (verbose==TRUE){
+        if (verbose){
           cat("Autocrine signaling: ",fill=TRUE)
         }
         k=0
         int=NULL
         n.int=NULL
-        if (verbose==TRUE){
+        if (verbose){
           cat("Checking for cell/cell signaling:",fill=TRUE)
         }
         for (i in z){
@@ -983,7 +1378,7 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
                 names(m.rec) <- rec.temp
 
                 final <- final.tmp[is.element(final.tmp$receptor,rec.temp),]
-                final <- cbind(final,LRscore(m.lig[final$ligand],m.rec[final$receptor],
+                final <- cbind(final,.LRscore(m.lig[final$ligand],m.rec[final$receptor],
                                           med))
 
                 colnames(final) <- c(c.names[i],c.names[j],"interaction type","LRscore")
@@ -999,14 +1394,14 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
                 if (nrow(final)>0){
                   k <- k+1
                   out[[k]] <- final
-                  if (verbose==TRUE){
+                  if (verbose){
                     cat(paste(nrow(final),"interactions from",c.names[i],
                               "to",c.names[j]),fill=TRUE)
                   }
                   int <- c(int,paste(i,"-",j,sep=""))
                   n.int <- c(n.int,paste(c.names[i],"-",c.names[j],sep=""))
                   gr <- graph_from_data_frame(final,directed=FALSE)
-                  if (write==TRUE){
+                  if (write){
                     fwrite(data.frame(final),paste("./cell-signaling/LR_interactions_",
                                                    c.names[i],"-",c.names[j],"-",
                                                    int.type,".txt",sep=""),sep="\t")
@@ -1026,7 +1421,7 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
       if (int.type=="paracrine"){
         gene.list <- vector("list",max(cluster))
         for (i in z){
-          if (is.null(obj@dge.cluster$genes)&
+          if (is.null(obj@dge.cluster$genes[[c.names[i]]])&
                 !file.exists(paste("./cluster-analysis/table_dge_",c.names[i],
                                 ".txt",sep=""))) {
             gene.list[[i]] <- "none"
@@ -1038,22 +1433,23 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
                 resu <- fread(paste("./cluster-analysis/table_dge_",c.names[i],
                                ".txt",sep=""),data.table=FALSE)
             }else{
-                resu <- obj@dge.cluster$genes[[i]]
+                resu <- obj@dge.cluster$genes[[c.names[i]]]
 
             }
             gene.list[[i]] <- resu$genes[resu$logFC>logFC]
             
             gene.list[[i]] <- gene.list[[i]][!is.na(gene.list[[i]])]
+
           }
         }
 
-        if (verbose==TRUE){
+        if (verbose){
           cat("Paracrine signaling: ",fill=TRUE)
         }
         k=0
         int=NULL
         n.int=NULL
-        if (verbose==TRUE){
+        if (verbose){
           cat("Checking for signaling between cell types",fill=TRUE)
         }
         for (i in z){
@@ -1090,7 +1486,7 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
                 names(m.rec) <- rec.temp
 
                 final <- final.tmp[is.element(final.tmp$receptor,rec.temp),]
-                final <- cbind(final,LRscore(m.lig[final$ligand],m.rec[final$receptor],
+                final <- cbind(final,.LRscore(m.lig[final$ligand],m.rec[final$receptor],
                                           med))
                 exclus <- final$ligand %in% gene.list[[i]] & final$receptor %in%
                   gene.list[[j]]
@@ -1110,20 +1506,20 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
                 if (nrow(final)>0){
                   k=k+1
                   out[[k]] <- final
-                  if (verbose==TRUE){
+                  if (verbose){
                     cat(paste(nrow(final),"interactions from",c.names[i],"to",
                               c.names[j]),fill=TRUE)
                   }
                   int <- c(int,paste(i,"-",j,sep=""))
                   n.int <- c(n.int,paste(c.names[i],"-",c.names[j],sep=""))
                   gr <- graph_from_data_frame(final,directed=FALSE)
-                  if (write==TRUE){
+                  if (write){
                     fwrite(data.frame(final),paste(
                       "./cell-signaling/LR_interactions_",c.names[i],"-",c.names[j],
                       "-",int.type,".txt",sep=""),sep="\t")
                   }
                 } else {
-                  if (verbose==TRUE){
+                  if (verbose){
                     cat(paste(nrow(final),"No significant interaction found from",c.names[i],"to",
                                                           c.names[j]),fill=TRUE)
                   }
@@ -1149,3 +1545,28 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
         receptors = NULL, param = param)
     }
 }) 
+
+#' Calculation of the LRscore
+#'
+#' @param l a value (or a vector) of the mean ligand expression in the
+#' secreting cluster
+#' @param r a value (or a vector) of the mean receptor expression in the
+#' receiving cluster
+#' @param s a value for scaling the score (usually the mean of the whole
+#' read count table, the median or another similar value is possible),
+#' must be over 0
+#'
+#' @return a value or a vector
+#'
+#' @examples
+#' l=1
+#' r=9
+#' s=5
+#' LRscore(l,r,s)
+.LRscore <- function(l,r,s){
+  L=l^(1/2)
+  R=r^(1/2)
+  S=s
+  sc=L*R/(S+L*R)
+  return(sc)
+}

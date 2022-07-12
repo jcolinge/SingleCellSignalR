@@ -40,8 +40,8 @@
 #' obj.int <- cellSignaling(data,int.type = "paracrine")
 #' net <- inter_network(obj.int, obj)
 
-inter_network <- function(obj, dm, plot = FALSE,
-          most.variables = TRUE, write = TRUE, verbose = TRUE){
+inter_network <- function(obj, dm, clusters = NULL, plot = TRUE,
+          most.variables = TRUE, write = FALSE, verbose = TRUE){
   
   if (!is(dm, "SCSRDataModel")){
         stop("dm must be a SCSRDataModel object")
@@ -57,14 +57,21 @@ inter_network <- function(obj, dm, plot = FALSE,
   c.names <- dm@cluster$names
   cluster <- dm@cluster$id
   data <- dm@ncounts$matrix
-  genes <- dm@ncounts$genes
+  genes <- rownames(dm@ncounts$matrix)
   signal <- obj@LRinter
+  species <- dm@initial.organism
+  if (species!='hsapiens'){
+    rownames(data) <- dm@ncounts$initial.orthologs
+  }
 
   if (!is.null(dm@ncounts$matrix.mv)&most.variables){
         cat("Matrix of most variable genes used. To use the whole matrix set most.variables 
             parameter to FALSE.\n")
         data <- dm@ncounts$matrix.mv
-        genes <- dm@ncounts$genes.mv
+        genes <- rownames(dm@ncounts$matrix.mv)
+        if (species!='hsapiens'){
+          rownames(data) <- dm@ncounts$initial.orthologs.mv
+      }
     }
 
   if (is.null(c.names)==TRUE){
@@ -83,29 +90,30 @@ inter_network <- function(obj, dm, plot = FALSE,
   rownames(data) <- genes
   interface <- list()
 
-  species <- dm@initial.organism
-  if (species=='mus musculus'){
-    Hs2mm <- mm2Hs[,1]
-    mm2Hs <- mm2Hs[,2]
-    names(mm2Hs) <- Hs2mm
-    names(Hs2mm) <- as.character(mm2Hs)
-    m.names <- mm2Hs[rownames(data)]
-    data <- subset(data,(!is.na(m.names)))
-    m.names <- m.names[!is.na(m.names)]
-    rownames(data)<-as.character(m.names)
+  clusterToStudy <- c.names
+  if (!is.null(clusters)){
+    if(all(clusters%in%c.names)){
+      clusterToStudy <- clusters
+      }else{
+        cat("Please input clusters names that are described in the object. 
+          Analyzing all clusters\n")
+      }
   }
+  
 
   # Interface networks ========================================================
   tmp <-  vector("list",length=length(signal))
-  if (is.null(signal)==FALSE){
+  if (!is.null(signal)){
     for (i in seq_len(length(signal))){
       ci <-  signal[[i]]
-      from <- names(ci)[1]
-      to <- names(ci)[2]
-      tmp[[i]] <-  data.frame(ligand=paste0(from,".",ci[[1]]),receptor=
+      if(names(ci)[1]%in%clusterToStudy&names(ci)[2]%in%clusterToStudy){
+        from <- names(ci)[1]
+        to <- names(ci)[2]
+        tmp[[i]] <-  data.frame(ligand=paste0(from,".",ci[[1]]),receptor=
                                 paste0(to,".",ci[[2]]),ligand.name=ci[[1]],
                  receptor.name=ci[[2]],origin=from,destination=to,ci[,3:4],
                  stringsAsFactors=FALSE)
+      }
     }
     cellint <- do.call("rbind",tmp)
 
@@ -113,32 +121,34 @@ inter_network <- function(obj, dm, plot = FALSE,
     m <- 0
     n.int <- NULL
     for (i in seq_len(length(signal))){
-      m <- m+1
-      subpop <- colnames(signal[[i]])[1]
-      other <- colnames(signal[[i]])[2]
-      cell.n <- cellint[cellint$origin==subpop & cellint$destination==other,]
-      n.int=c(n.int,paste(subpop, other, sep="-"))
-      if (verbose==TRUE){
-        cat("Doing",subpop,"and",other,"...")
-      }
+      if(colnames(signal[[i]])[1]%in%clusterToStudy&
+        colnames(signal[[i]])[2]%in%clusterToStudy){
+        m <- m+1
+        subpop <- colnames(signal[[i]])[1]
+        other <- colnames(signal[[i]])[2]
+        cell.n <- cellint[cellint$origin==subpop & cellint$destination==other,]
+        n.int=c(n.int,paste(subpop, other, sep="-"))
+        if (verbose){
+          cat("Doing",subpop,"and",other,"...")
+        }
 
-      l.both <- intersect(cell.n$ligand[cell.n$origin==subpop],
+        l.both <- intersect(cell.n$ligand[cell.n$origin==subpop],
                           cell.n$ligand[cell.n$origin==other])
-      for (l in l.both){
-        k <- which(cell.n$ligand==l & cell.n$origin==other)
-        cell.n$ligand[k] <- paste("bis",l)
-      }
-      r.both <- intersect(cell.n$receptor[cell.n$origin==subpop],
+        for (l in l.both){
+          k <- which(cell.n$ligand==l & cell.n$origin==other)
+          cell.n$ligand[k] <- paste("bis",l)
+        }
+        r.both <- intersect(cell.n$receptor[cell.n$origin==subpop],
                           cell.n$receptor[cell.n$origin==other])
-      for (r in r.both){
-        k <- which(cell.n$receptor==r & cell.n$origin==other)
-        cell.n$receptor[k] <- paste("bis",r)
-      }
+        for (r in r.both){
+          k <- which(cell.n$receptor==r & cell.n$origin==other)
+          cell.n$receptor[k] <- paste("bis",r)
+        }
 
-      if (is.null(dim(cell.n))==FALSE){
-        g.cell <- graph_from_data_frame(cell.n,directed=TRUE)
-        genes <- c(cell.n$ligand,cell.n$receptor)
-        prop.genes <- unique(data.frame(gene=genes,display.name=
+        if (!is.null(dim(cell.n))){
+          g.cell <- graph_from_data_frame(cell.n,directed=TRUE)
+          genes <- c(cell.n$ligand,cell.n$receptor)
+          prop.genes <- unique(data.frame(gene=genes,display.name=
                                           gsub("^bis ","",genes),
                                         gene.type=c(rep("ligand",nrow(cell.n)),
                                                     rep("receptor",
@@ -146,26 +156,28 @@ inter_network <- function(obj, dm, plot = FALSE,
                                         expressed.in=c(cell.n$origin,
                                                        cell.n$destination),
                                         stringsAsFactors=FALSE))
-        prop.genes <- subset(prop.genes,!duplicated(prop.genes[[1]]))
-        rownames(prop.genes) <- prop.genes[[1]]
-        g.cell <- g.cell %>% set_vertex_attr(
-          name="display.name",value=prop.genes[V(g.cell)$name,
+          prop.genes <- subset(prop.genes,!duplicated(prop.genes[[1]]))
+          rownames(prop.genes) <- prop.genes[[1]]
+          g.cell <- g.cell %>% set_vertex_attr(
+            name="display.name",value=prop.genes[V(g.cell)$name,
                                                "display.name"]) %>%
-          set_vertex_attr(name="gene.type",value=prop.genes[V(g.cell)$name,
+            set_vertex_attr(name="gene.type",value=prop.genes[V(g.cell)$name,
                                                             "gene.type"]) %>%
-          set_vertex_attr(name="expressed.in",value=prop.genes[V(g.cell)$name,
+            set_vertex_attr(name="expressed.in",value=prop.genes[V(g.cell)$name,
                                                                "expressed.in"])
 
-        if (write==TRUE){
-          write.graph(g.cell,file=paste0('./networks/intercell_network_',
+          if (write){
+            write.graph(g.cell,file=paste0('./networks/intercell_network_',
                                          subpop,'-',other,'.graphml'),
                       format="graphml")
+          }
+          interface[[m]]=cell.n
+        } else {
+          interface[[m]]="No network"
         }
-        interface[[m]]=cell.n
-      } else {
-        interface[[m]]="No network"
+        cat(' OK', fill=TRUE)
       }
-      cat(' OK', fill=TRUE)
+      
     }
     names(interface) <- n.int
 
@@ -197,16 +209,16 @@ inter_network <- function(obj, dm, plot = FALSE,
     g.cell <- g.cell %>% set_vertex_attr(name="expressed.in",
                                          value=prop.genes[V(g.cell)$name,
                                                           "expressed.in"])
-    if (write==TRUE){
+    if (write){
       write.graph(g.cell,file=
                     paste0('./networks/full-intercellular-network.graphml'),
                   format="graphml")
     }
-    if (plot==TRUE){
+    if (plot){
       g.plot <- graph_from_data_frame(cellint,directed=FALSE)
       tmp <- do.call(rbind,strsplit(unique(c(cellint$ligand,cellint$receptor)),split=".",fixed=TRUE))
-      cr <- rainbow(max(cluster))
-      names(cr) <- c.names
+      cr <- rainbow(length(clusterToStudy))
+      names(cr) <- clusterToStudy
       V(g.plot)$vertex.label <- do.call(rbind,strsplit(unique(c(cellint$ligand,cellint$receptor)),split=".",fixed=TRUE))[,2]
       V(g.plot)$label.color <- "black"
       V(g.plot)$color <- cr[tmp[,1]]
@@ -217,7 +229,7 @@ inter_network <- function(obj, dm, plot = FALSE,
       E(g.plot)$color <- "gray30"
 
       plot(g.plot,vertex.label=V(g.plot)$vertex.label,main="Intercellular communication network")
-      legend("bottomleft",legend=c.names,fill=cr)
+      legend("bottomleft",legend=clusterToStudy,fill=cr)
       legend("topleft",legend=c("ligand","receptor"),pch=c(1,0))
     }
   }

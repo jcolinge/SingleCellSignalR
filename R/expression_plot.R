@@ -33,18 +33,25 @@ expression_plot <- function(obj,name,colors=c("default","rainbow","heat"),most.v
     }
 
   data <- obj@ncounts$matrix
-  tsne <- obj@cluster$tsne
+  tsne <- obj@cell.representation$coordinates
+  species <- obj@initial.organism
+  if (species!='hsapiens'){
+    rownames(data) <- obj@ncounts$initial.orthologs
+  } 
 
   if (!is.null(obj@ncounts$matrix.mv)&most.variables){
         cat("Matrix of most variable genes used. To use the whole matrix set most.variables 
             parameter to FALSE.\n")
         data <- obj@ncounts$matrix.mv
+        if (species!='hsapiens'){
+          rownames(data) <- obj@ncounts$initial.orthologs.mv
+        } 
     }
 
   options(warn=-1)
   colors <- match.arg(colors)
   opar <- par()
-  if (is.element(name,rownames(data))==TRUE){
+  if (is.element(name,rownames(data))){
     a <- as.numeric(data[name,])
     a <- a*100/max(a)
     a <- log(5*a+1)

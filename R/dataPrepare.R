@@ -41,6 +41,8 @@
 #' @export
 #'
 #' @import data.table
+#' @import celldex
+#' @import SingleR
 #' @importFrom stats quantile
 #' @import graphics
 #' @importFrom stats sd quantile
@@ -52,25 +54,26 @@
 #' rownames(data) <- paste("gene",seq_len(50))
 #' obj <- dataPrepare(data)
 
-dataPrepare <- function(file, species = "hsapiens", cluster = NULL, most.variables = 0, lower = 0,  
-                          upper = 0, normalize = TRUE, write = FALSE, verbose = TRUE, plot = FALSE,
-                          method.ortho = c("gprofiler","homologene","babelgene")){
+dataPrepare <- function(file, species = "hsapiens", most.variables = 0,   
+                          formating = c("quantile", "library","none"), lower = 0, upper = 0,
+                          method.ortho = c("gprofiler","homologene","babelgene"), 
+                          write = FALSE, verbose = TRUE, plot = FALSE){
 
   if (dir.exists("data")==FALSE & write==TRUE){
     dir.create("data")
   }
 
-  if (is.matrix(file)){
-    data = file
+  if (is.matrix(file)|is.data.frame(file)){
+    data <- file
   }else if (file.exists(file)) {
     data <- fread(file,data.table=FALSE)
   }else {
     stop(paste(file,"doesn't exist."))
   }
-
-
+  spec = NULL
+  # If genes are written in a column, pass it as rownames and remove column
   for (i in seq_len(ncol(data))){
-    if (is.character(data[,i])==FALSE){
+    if (!is.character(data[,i])){
       p=i-1
       break
     }
@@ -78,31 +81,49 @@ dataPrepare <- function(file, species = "hsapiens", cluster = NULL, most.variabl
   if (p!=0){
     colCheck = data[,p]
     data <- data[,-c(seq_len(p))]
+    genes <- colCheck
+    rownames(data) <- genes
   }else{
     colCheck = rownames(data)
   }
-  
-  data <- subset(data, !duplicated(colCheck))
-  genes <- colCheck
-  
-  rownames(data) <- genes
-  data <- data[rowSums(data)>0,]
-  data <- data.frame(data[,apply(data,2,function(x) quantile(x,0.99))>0])
-  if (normalize==TRUE){
-    cat("log-Normalization",fill=TRUE)
-    q <- apply(data,2,quantile,0.99)
-    data <- log(1+sweep(data,2,q/median(q),"/"))
-  }
-  data <- data[rowSums(data)>0,]
-  data <- data[rowSums(data)<=quantile(rowSums(data),1-upper) &
-                rowSums(data)>=quantile(rowSums(data),lower),]
 
+  data <- subset(data, !duplicated(colCheck))
+  genes <- rownames(data)
+  
+
+  formating <- match.arg(formating)
+
+  # Apply chosen normalization method
+  if (formating == "quantile"){
+    data <- data[rowSums(data)>0,]
+    data <- data.frame(data[,apply(data,2,function(x) quantile(x,0.99))>0])
+    
+      cat("log-Normalization",fill=TRUE)
+      q <- apply(data,2,quantile,0.99)
+      data <- log(1+sweep(data,2,q/median(q),"/"))
+    
+    data <- data[rowSums(data)>0,]
+    data <- data[rowSums(data)<=quantile(rowSums(data),1-upper) &
+                rowSums(data)>=quantile(rowSums(data),lower),]
+    spec = list(Lower = lower, Upper = upper)
+  }else if (formating == "library"){
+    # Add library that does normalization
+  }
+
+  homolog.genes <- NULL
+  homolog.genes.mv <- NULL
+  
+  # Convert genes to human in the counts matrix and store original gene names
   if (species!="hsapiens"){
     cat("\nConverting data to human data...\n")
     conversion.dict <- .findOrthoGenes(from_organism = species,
         from_values = rownames(data),
         method = method.ortho)
-    data <- .convertToHuman(data, conversion.dict)
+    dataGene <- .convertToHuman(data, conversion.dict)
+    dataGene <- dataGene[c("Gene.name", 
+            setdiff(names(dataGene), "Gene.name"))]
+    homolog.genes <- as.character(dataGene$Gene.name)
+    data <- dataGene[,-1]
   }
 
   if (verbose==TRUE){
@@ -114,22 +135,35 @@ dataPrepare <- function(file, species = "hsapiens", cluster = NULL, most.variabl
     fwrite(data.frame(data),"./data/data.txt",sep="\t")
     fwrite(data.frame(rownames(data)),"./data/genes.txt",sep="\t")
   }
+
+  # Select most variable genes
   if (most.variables!=0 & most.variables >= 1){
     m <- apply(data,1,mean)
     cv <- apply(data,1,sd)/m
     names(cv) <- rownames(data)
+
+    cvGenes <- cv 
+    if (species!="hsapiens") names(cvGenes) <- dataGene$Gene.name
+
     cv <- cv[m>quantile(m,0.5)]
+    if (species!="hsapiens") cvGenes <- cvGenes[m>quantile(m,0.5)]
+
     if (length(cv)<most.variables){
       mv.genes <- names(cv)
+      if (species!="hsapiens") homolog.genes.mv <- names(cvGenes)
     } else {
       mv.genes <- names(sort(cv,decreasing=TRUE))[seq_len(most.variables)]
+      if (species!="hsapiens") homolog.genes.mv <- names(sort(cvGenes,
+        decreasing=TRUE))[seq_len(most.variables)]
     }
     mv.genes <- names(sort(cv,decreasing=TRUE))[seq_len(most.variables)]
+    if (species!="hsapiens") homolog.genes.mv <- names(sort(cvGenes,
+      decreasing=TRUE))[seq_len(most.variables)]
     res <- list(data,data[mv.genes,])
     names(res) <- c("complete.dataset","most.var.dataset")
-    mat = as.matrix(res[[1]])
-    mat.mv = as.matrix(res[[2]])
-    genes.mv = rownames(as.matrix(res[[2]]))
+    mat <- as.matrix(res[[1]])
+    mat.mv <- as.matrix(res[[2]])
+    genes.mv <- rownames(as.matrix(res[[2]]))
     if (verbose==TRUE){
     cat("Most variable counts matrix:")
     cat(paste(dim(data)[1],"genes"),fill=TRUE)
@@ -148,44 +182,9 @@ dataPrepare <- function(file, species = "hsapiens", cluster = NULL, most.variabl
     mat.mv <- NULL
   }
 
-  names <- NULL
-  nb.cells <- NULL
-  id <- NULL
-  if (!is.null(cluster)){
-    names <- sort(unique(cluster))
-    if (is.numeric(cluster)){
-      names(names) <- names
-    }else{
-      names(names) <- seq(1:length(names))
-    }
-    
-    id <- match(cluster,names)
-  }
-
-  homolog.genes <- list()
-    if (species!="hsapiens"){
-          mat <- as.data.frame(mat) 
-          mat$human.gene.name          <- rownames(mat)
-          conversion.dict$human.gene.name  <- rownames(conversion.dict) 
-          counts.transposed <- merge(mat,conversion.dict, by.x='human.gene.name',all=FALSE,sort=FALSE)
-          homolog.genes <- list(counts.transposed$Gene.name)
-          mat$human.gene.name <- NULL
-          mat <- data.matrix(mat) 
-
-          mat.mv <- as.data.frame(mat.mv) 
-          mat.mv$human.gene.name          <- rownames(mat.mv)
-          conversion.dict$human.gene.name  <- rownames(conversion.dict) 
-          counts.transposed <- merge(mat.mv,conversion.dict, by.x='human.gene.name',all=FALSE,sort=FALSE)
-          homolog.genes <- list(counts.transposed$Gene.name)
-          mat.mv$human.gene.name <- NULL
-          mat.mv <- data.matrix(mat.mv) 
-          rm(counts.transposed)
-    }
-
   new("SCSRDataModel", initial.organism = species, ncounts = list(matrix = mat, 
     matrix.mv = mat.mv, initial.orthologs = homolog.genes, initial.orthologs.mv = homolog.genes.mv,
-    param = list(normalization = normalize, outliers = c(lower,upper), most.variables = most.variables)),
-    cluster = list(id = id, names = names, tsne = NULL, method = NULL)) 
+    param = list(formating = formating, specific = spec, most.variables = most.variables))) 
 }
 
 #' @title Orthologs Gene Names 
@@ -208,7 +207,6 @@ dataPrepare <- function(file, species = "hsapiens", cluster = NULL, most.variabl
 #' for homologous genes annotation.
 #' @importFrom orthogene convert_orthologs
 #'
-#' @export
 #' @examples
 #' print('findOrthoGenes')
 .findOrthoGenes<- function(from_organism ="mmusculus",
@@ -260,9 +258,9 @@ dataPrepare <- function(file, species = "hsapiens", cluster = NULL, most.variabl
 #' @param dictionnary   A dataframe where first column belong to 
 #  organism of study & rownames are the human gene names.
 #'
-#' @return Return a counts matrix transposed for Human.
+#' @return Return a counts matrix transposed for Human containing a column of 
+#' original gene names
 #'
-#' @export
 #' @examples
 #' print('transposeToHuman')
 .convertToHuman <- function(counts,dictionnary=data.frame(Gene.name="A",row.names = "B")) {
@@ -280,11 +278,17 @@ dataPrepare <- function(file, species = "hsapiens", cluster = NULL, most.variabl
           # Transform Matrice using orthologs_dictionnary
           counts$Gene.name  <- rownames(counts)
           dictionnary$human.gene.name  <- rownames(dictionnary) 
+          counts$index <- seq(1,nrow(counts),1)
  
-          counts.transposed <- merge(counts,dictionnary, by.x='Gene.name',all=FALSE,sort=FALSE)
+          counts.transposed <- merge(counts,dictionnary, by="Gene.name", all.x=TRUE, sort=FALSE)
+          counts.transposed <- counts.transposed[!is.na(counts.transposed$human.gene.name),]
+          counts.transposed <- counts.transposed[order(counts.transposed$index,
+            decreasing=FALSE),]
+          counts.transposed$index <- NULL
 
-          counts.transposed$Gene.name <- NULL
-          counts.transposed <-counts.transposed[c("human.gene.name", setdiff(names(counts.transposed), "human.gene.name"))]
+         # counts.transposed$Gene.name <- NULL
+          counts.transposed <-counts.transposed[c("human.gene.name", 
+            setdiff(names(counts.transposed), "human.gene.name"))]
 
           rownames(counts.transposed) <- counts.transposed[,1]
           counts.transposed           <- counts.transposed[,-1]
