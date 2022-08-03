@@ -164,16 +164,16 @@ object.int <- cellSignaling(obj = object)
 
 A summary of the interactions between cell clusters can be output in the form of a chord diagram by the  `visualize_interactions()` function:  
 
-```{r, eval=TRUE}
-visualize_interactions(obj = object.int, dm = object)
+```{r, eval=TRUE, fig.height=7, fig.width=7}
+visualizeInteractions(obj = object.int, dm = object)
 ```
 
 This function will create a *plot* in the R plot window.  
 
-The details of the interactions between two clusters, for example cluster 1 and 2, can also be shown in the plot window with the `visualize_interactions()` function. Note that in the example below we ask for the display of two pairs of cell clusters, pair 1 that contains interactions from cluster 1 to 2, and pair 4 from cluster 2 to 1. (`names(object.inter@LRinter)` returns the cell cluster names in each pair, see function `visualize_interactions()` details.)   
+The details of the interactions between two clusters, for example cluster 1 and 2, can also be shown in the plot window with the `visualize_interactions()` function. Note that in the example below we ask for the display of two pairs of cell clusters, pair 1 that contains interactions from cluster 1 to 2, and pair 4 from cluster 2 to 1. (`names(LRinter(object.inter))` returns the cell cluster names in each pair, see function `visualize_interactions()` details.)   
 
-```{r, eval=TRUE}
-visualize_interactions(obj = object.int, dm = object,show.in=c(1,4))
+```{r, eval=TRUE, fig.height=7, fig.width=7}
+visualizeInteractions(obj = object.int, dm = object,show.in=c(1,4))
 ```   
 
 *Remark: We observe that in the chord diagrams above, the “specific” interactions were highlighted with a thick black line.*
@@ -183,16 +183,41 @@ And these plots can be saved into pdf files in the *images* folder using the `wr
 visualize_interactions(obj = object.int, dm = object,write.in=c(1,4))
 ```
 
+The ligand-receptor scores within clusters can be represented through the function `interactionDotPlot()`:
+
+```{r, eval=TRUE, fig.height=7, fig.width=7}
+interactionDotPlot(obj = object.int, interaction = 4)
+``` 
+
 Many other visualization functions are available to plot interaction results.
 
 ## Adding own LR interaction to database
 
-It is possible to add specific LR interactions to be studied. When using the `cellSignaling()` function, specifying the LR interactions as a dataframe through the `addLR` argument:
+It is possible to add specific LR interactions to be studied. When using the `cellSignaling()` function, specify the LR interactions as a dataframe through the `addLR` argument:
 
 ```{r, echo=TRUE, eval = FALSE}
 LRadded <- dataframe(ligand = paste("Ligand ",seq_len(10)), receptor = paste("Receptor ",seq_len(10)))
 object.int <- cellSignaling(obj = object, addLR = LRadded)
 ```
+
+## Switching the LR database 
+
+It is possible to switch the ligand-receptor interaction database from LRdb to any other. When using the `cellSignaling()` function, specify the LR database as a dataframe (with 2 columns *ligand** and receptor) through the `switchDB` argument:
+
+```{r, echo=TRUE, eval = FALSE}
+databaseLR_new <- dataframe(ligand = paste("Ligand ",seq_len(10)), receptor = paste("Receptor ",seq_len(10)))
+object.int <- cellSignaling(obj = object, switchDB = databaseLR_new)
+```
+
+## Visualize genes related to pathway(s) of interest
+
+The different visualization functions contain an argument `pathways` that can be set to specify one or several pathways of interest. The pathways need to be contained in the *ReactomeKEGG* database. The function `findpathways()` can be used to access all pathways' names containing a specific keyword.
+
+```{r, echo=TRUE, eval = FALSE}
+pathways <- findPathways("interleukin")
+```
+
+The specific pathway(s) name(s) can then be used in the different functions: `visualizeInteractions()`, `interNetwork()`, `intraNetwork()` and `interactionDotPlot()`.
 
 <span style="color:white">red</span>   
 <span style="color:white">red</span>   
@@ -227,12 +252,12 @@ head(my.markers)
 Let us perform the clustering. For this example, we set the `method` argument to *"kmeans"* and the *n* argument to 12. We use the markers table created above to assign a celltype to each cluster.
 
 ```{r, eval=TRUE}
-object.b <- cellClustering(obj = object, n = 12, method = "simlr", markers = my.markers, classification = "singler")
+object <- cellClustering(obj = object, n = 12, method = "simlr", markers = my.markers, classification = "by cluster")
 ```
 
 We can compare the results with the one obtained through cell annotation:
 ```{r, eval=TRUE}
-object <- cellClassifying(obj = object, markers = my.markers)
+object.b <- cellClassifying(obj = object, markers = my.markers)
 ```
 
 Differential gene expression can be performed to find specific genes expressed in each cluster (than can then be used to define specific ligand-receptor interactions):
@@ -242,8 +267,18 @@ object <- dgeCluster(obj = object)
 ```
 
 The most variable interactions between cluster can be analysed and plotted through the `mv_interactions()` function: 
+```{r, eval=TRUE, fig.height=7, fig.width=7}
+mvInteractions(obj = object)
+```  
+
+It is possible to look at specific genes' coupled expression using the `expression_plot_2()` function.
 ```{r, eval=TRUE}
-mv_interactions(obj = object)
+expressionPlot2(obj = object, "AREG", "EGFR")
+```  
+
+With the function `expression_plot()` it is possible to look at the expression of one gene within each cell.
+```{r, eval=TRUE}
+expressionPlot(obj = object, "ANXA1")
 ```  
 
 LR interactions are calculated between the different clusters (interaction type is by default `paracrine`):
@@ -251,36 +286,68 @@ LR interactions are calculated between the different clusters (interaction type 
 object.int <- cellSignaling(obj = object)
 ```
 
-And then visualized:
-```{r, eval=TRUE}
-visualize_interactions(obj = object.int, dm = object, show.in = c(4,1))
+And then visualized, eventually specifying pathway(s) to study:
+
+```{r, eval=TRUE, fig.height=7, fig.width=7}
+pathways <- findPathways("downregulation")
+p <- pathways[2,1]
+visualizeInteractions(obj = object.int, dm = object, show.in = c(4,1), pathway = p)
 ```
 
-It is possible to look at the genes involved in these specific interactions using the `expression_plot_2()` function.
-```{r, eval=TRUE}
-expression_plot_2(obj = object, "AREG", "EGFR")
-```  
-
-With the function `expression_plot()` it is possible to look at the expression of one gene within each cell.
-```{r, eval=TRUE}
-expression_plot(obj = object, "ANXA1")
-```  
-
-An intercellular network can also be generated to map the overall ligand/receptor interactions invoking the `inter_network()` function:  
-
-```{r, eval=TRUE}
-inter.net <- inter_network(obj = object.int, dm = object)
+```{r, eval=TRUE, fig.height=7, fig.width=7}
+interactionDotPlot(obj = object.int, dm = object, interaction = 4, pathway = p)
 ```
 
-We can be interested in genes participating in pathways with a receptor of interest inside a cluster of interest. Let us say *PDE1C* in *cluster 2*.
+An intercellular network can also be generated to map the ligand/receptor interactions linked with specific pathway(s) calling the `inter_network()` function:  
 
 ```{r, eval=TRUE}
-g = object.int@LRinter[[1]][1,2]
-c = names(object.int@LRinter[[1]][2])
-intra.net <- intra_network(dm = object, obj = object.int, goi = g, coi = c)
+inter.net <- interNetwork(obj = object.int, dm = object, pathway = p)
+```
+
+We can be interested in genes participating in pathways with a receptor of interest inside a cluster of interest. Let us say *EGFR* in the first cluster.
+
+```{r, eval=TRUE}
+g <- "EGFR"
+c <- cluster(object)$names[1]
+intra.net <- intraNetwork(dm = object, obj = object.int, goi = g, coi = c, pathway = p)
 ```
 
 At this point the intercellular network have been generated and exported in text and graphML formats in the *networks* folder.   
+
+## Mouse dataset
+
+For this example we use the scRNAseq dataset from `recount3`'s *SRP066963* project. Because the dataset is not a human dataset the species studied must be given upon preparing the data: 
+
+```{r}
+data(Mouse, package = "SingleCellSignalR")
+data <- data
+
+object <- dataPrepare(file = data, lower=0.05,upper=0.0155, species = "mmusculus")
+```
+
+Mouse genes are converted to human genes (initial mouse genes are found in `ncounts(object)$initial.orthologs`). Genes in the dataset are compared with the ligand receptor database (**LRdb**) to verify their presence.
+
+We apply clustering to the data and use the `singler` package to annotate them:
+
+```{r, eval=TRUE}
+object <- cellClustering(obj = object, method = "simlr", classification = "singler")
+```
+
+Differential gene expression can be performed to find specific genes expressed in each cluster (than can then be used to define specific ligand-receptor interactions):
+
+```{r, eval=TRUE}
+object <- dgeCluster(obj = object)
+```
+
+The most variable interactions between cluster can be analysed and plotted through the `mv_interactions()` function: 
+```{r, eval=TRUE, fig.height=7, fig.width=7}
+mvInteractions(obj = object)
+```  
+
+LR interactions are calculated between the different clusters (interaction type is by default `paracrine`):
+```{r, eval=TRUE}
+object.int <- cellSignaling(obj = object)
+```
 
 <span style="color:white">red</span>   
 <span style="color:white">red</span>   
@@ -289,6 +356,12 @@ At this point the intercellular network have been generated and exported in text
 Thank you for reading this guide and for using **SingleCellSignalR**.
 
 ----
+
+# Session information
+
+```{r session-info}
+sessionInfo()
+```
 
 # *References*
 
@@ -300,7 +373,7 @@ Thank you for reading this guide and for using **SingleCellSignalR**.
 
 4. Tirosh I, Izar B, Prakadan SM, Wadsworth MH, Treacy D, Trombetta JJ, et al. Dissecting the multicellular ecosystem of metastatic melanoma by single-cell RNA-seq. Science. 2016;352:189-96.
  
-
+ 
 
 
 
