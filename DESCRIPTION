@@ -2,11 +2,11 @@ Package: SingleCellSignalR
 Title: Cell Signalling Using Single Cell RNAseq Data Analysis
 Version: 0.99.24
 Authors@R: c(person("Simon", "Cabello-Aguilar", email = "simon.cabello-aguilar@inserm.fr", role = c("aut")), person("Jacques", "Colinge", email = "jacques.colinge@inserm.fr", role = c("cre","aut")))
-Description: Allows single cell RNA seq data analysis, clustering, creates internal network and infers cell-cell interactions.
-Depends: R (>= 4.0)
+Description: Allows single cell RNA seq data analysis, clustering, creates internal network and infers cell-cell interactions. It relies on the LRdb database and a KEGG-Reactome pathway database.
+Depends: R (>= 4.2.0)
 License: GPL-3
 Encoding: UTF-8
-LazyData: true
+LazyData: false
 Imports:
   BiocManager,
   celldex,
@@ -14,6 +14,7 @@ Imports:
   limma,
   igraph,
   gplots,
+  ggplot2,
   grDevices,
   edgeR,
   SIMLR,
@@ -28,7 +29,10 @@ Imports:
   multtest,
   scran,
   utils,
-RoxygenNote: 7.0.2
+  orthogene,
+  RColorBrewer,
+  methods,
+RoxygenNote: 7.2.1
 Suggests: 
     knitr,
     rmarkdown
