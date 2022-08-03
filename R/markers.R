@@ -17,22 +17,23 @@
 #' markers(c("immune","bc"))
 #'
 markers <- function(category=c("immune","tme","melanoma","bc")){
-  a <- NULL
-  category <- match.arg(category, several.ok=TRUE)
-  for (i in category){
-    if (i=="immune"){
-      a <- c(a,c(4:6,10:15))
+    a <- NULL
+    data(markers_default)
+    category <- match.arg(category, several.ok=TRUE)
+    for (i in category){
+        if (i=="immune"){
+            a <- c(a,c(4:6,10:15))
+        }
+        if (i=="tme"){
+            a <- c(a,c(7,8))
+        }
+        if (i=="melanoma"){
+            a <- c(a,9)
+        }
+        if (i=="bc"){
+            a <- c(a,c(seq_len(3)))
+        }
     }
-    if (i=="tme"){
-      a <- c(a,c(7,8))
-    }
-    if (i=="melanoma"){
-      a <- c(a,9)
-    }
-    if (i=="bc"){
-      a <- c(a,c(seq_len(3)))
-    }
-  }
-  m <- markers_default[,a]
-  return(m)
+    m <- markers_default[,a]
+    return(m)
 }
