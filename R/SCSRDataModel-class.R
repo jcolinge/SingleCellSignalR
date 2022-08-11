@@ -89,12 +89,17 @@ if (!isGeneric("initialOrganism")) {
 
     setGeneric("initialOrganism", fun)
 }
-#' organism accessor
+#' Generic accessor for the organism
 #' @name initialOrganism
 #' @aliases initialOrganism,SCSRDataModel-method
+#'
 #' @param x A SCSRDataModel object
-#' @keywords internal
+#'
 #' @export
+#' @keywords internal
+#' 
+#' @examples
+#' message('initialOrganism')
 setMethod("initialOrganism", "SCSRDataModel",
     function(x) x@initial.organism)
 
@@ -105,12 +110,17 @@ if (!isGeneric("ncounts")) {
 
     setGeneric("ncounts", fun)
 }
-#' Counts accessor
+#' Generic accessor for the ncounts slot
 #' @name ncounts
 #' @aliases ncounts,SCSRDataModel-method
+#'
 #' @param x A SCSRDataModel object
-#' @keywords internal
+#'
 #' @export
+#' @keywords internal
+#' 
+#' @examples
+#' message('ncounts')
 setMethod("ncounts", "SCSRDataModel", function(x) x@ncounts)
 
 if (!isGeneric("cluster")) {
@@ -119,12 +129,17 @@ if (!isGeneric("cluster")) {
     else fun <- function(x) standardGeneric("cluster")
     setGeneric("cluster", fun)
 }
-#' clusters accessor
+#' Generic accessor for the cluster slot
 #' @name cluster
 #' @aliases cluster,SCSRDataModel-method
+#'
 #' @param x A SCSRDataModel object
-#' @keywords internal
+#'
 #' @export
+#' @keywords internal
+#' 
+#' @examples
+#' message('cluster')
 setMethod("cluster", "SCSRDataModel", function(x) x@cluster)
 
 if (!isGeneric("cluster<-")) {
@@ -150,12 +165,17 @@ if (!isGeneric("cell.representation")) {
     else fun <- function(x) standardGeneric("cell.representation")
     setGeneric("cell.representation", fun)
 }
-#' Model cell.representation accessor
+#' Generic accessor for the cell.representation slot
 #' @name cell.representation
 #' @aliases cell.representation,SCSRDataModel-method
+#'
 #' @param x A SCSRDataModel object
-#' @keywords internal
+#'
 #' @export
+#' @keywords internal
+#' 
+#' @examples
+#' message('cell.representation')
 setMethod("cell.representation", "SCSRDataModel",
     function(x) x@cell.representation)
 
@@ -183,12 +203,17 @@ if (!isGeneric("dge.cluster")) {
     else fun <- function(x) standardGeneric("dge.cluster")
     setGeneric("dge.cluster", fun)
 }
-#' Model dge.cluster accessor
+#' Generic accessor for the dge.cluster slot
 #' @name dge.cluster
 #' @aliases dge.cluster,SCSRDataModel-method
+#'
 #' @param x A SCSRDataModel object
-#' @keywords internal
+#'
 #' @export
+#' @keywords internal
+#' 
+#' @examples
+#' message('dge.cluster')
 setMethod("dge.cluster", "SCSRDataModel",
     function(x) x@dge.cluster)
 

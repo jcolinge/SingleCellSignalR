@@ -71,12 +71,17 @@ if (!isGeneric("LRinter")) {
     else fun <- function(x) standardGeneric("LRinter")
     setGeneric("LRinter", fun)
 }
-#' LRinter accessor
+#' Generic accessor for the LRinter slot
 #' @name LRinter
 #' @aliases LRinter,SCSRInference-method
-#' @param x A SCSRDataModel object
-#' @keywords internal
+#'
+#' @param x A SCSRInference object
+#'
 #' @export
+#' @keywords internal
+#' 
+#' @examples
+#' message('LRinter')
 setMethod("LRinter", "SCSRInference", function(x) x@LRinter)
 
 if (!isGeneric("LRsubpop")) {
@@ -85,12 +90,17 @@ if (!isGeneric("LRsubpop")) {
     else fun <- function(x) standardGeneric("LRsubpop")
     setGeneric("LRsubpop", fun)
 }
-#' LRsubpop accessor
+#' Generic accessor for the LRsubpop slot
 #' @name LRsubpop
 #' @aliases LRsubpop,SCSRInference-method
-#' @param x A SCSRDataModel object
-#' @keywords internal
+#'
+#' @param x A SCSRInference object
+#'
 #' @export
+#' @keywords internal
+#' 
+#' @examples
+#' message('LRsubpop')
 setMethod("LRsubpop", "SCSRInference", function(x) x@LRsubpop)
 
 if (!isGeneric("ligands")) {
@@ -99,12 +109,17 @@ if (!isGeneric("ligands")) {
     else fun <- function(x) standardGeneric("ligands")
     setGeneric("ligands", fun)
 }
-#' ligands accessor
+#' Generic accessor for the ligands slot
 #' @name ligands
 #' @aliases ligands,SCSRInference-method
-#' @param x A SCSRDataModel object
-#' @keywords internal
+#'
+#' @param x A SCSRInference object
+#'
 #' @export
+#' @keywords internal
+#' 
+#' @examples
+#' message('ligands')
 setMethod("ligands", "SCSRInference", function(x) x@ligands)
 
 if (!isGeneric("receptors")) {
@@ -113,12 +128,17 @@ if (!isGeneric("receptors")) {
     else fun <- function(x) standardGeneric("receptors")
     setGeneric("receptors", fun)
 }
-#' receptors accessor
+#' Generic accessor for the receptors slot
 #' @name receptors
 #' @aliases receptors,SCSRInference-method
-#' @param x A SCSRDataModel object
-#' @keywords internal
+#'
+#' @param x A SCSRInference object
+#'
 #' @export
+#' @keywords internal
+#' 
+#' @examples
+#' message('receptors')
 setMethod("receptors", "SCSRInference", function(x) x@receptors)
 
 
@@ -128,10 +148,15 @@ if (!isGeneric("param")) {
     else fun <- function(x) standardGeneric("param")
     setGeneric("param", fun)
 }
-#' Parameters accessor
+#' Generic accessor for the param slot
 #' @name param
 #' @aliases param,SCSRInference-method
-#' @param x A SCSRDataModel object
-#' @keywords internal
+#'
+#' @param x A SCSRInference object
+#'
 #' @export
+#' @keywords internal
+#' 
+#' @examples
+#' message('param')
 setMethod("param", "SCSRInference", function(x) x@param)

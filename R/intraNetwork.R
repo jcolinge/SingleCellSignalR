@@ -13,6 +13,8 @@
 #' @param plot a logical
 #' @param add.lig a logical (if TRUE adds the goi associated ligands from
 #' signal to the network)
+#' @param max.occu the maximum of occurence of a pathway in the database to be
+#' selected as relevant
 #' @param most.variables a logical
 #' @param connected a logical (if TRUE keeps only the genes connected to
 #' the goi)
@@ -28,6 +30,8 @@
 #' try lower (or higher) values.
 #' @details The `pathway` parameter can be set to select one or several    
 #' specific pathways to study.
+#' @details The `max.occu` parameter will set a max threshold on pathway
+#' occurence in the database for it to be shown.
 #' @details If `most.variables` is TRUE, then the function uses the most 
 #' variable genes matrix counts if it exists in the object.
 #' @details
@@ -63,7 +67,7 @@
 #' #if (!is.null(obj.int)) net <- intraNetwork(obj, 'gene 20', 1, obj.int)
 
 intraNetwork <- function(dm, goi, coi, obj = NULL, cell.prop = 0.2,
-    pathway = NULL, write = TRUE, plot = TRUE, add.lig = TRUE,
+    pathway = NULL, write = TRUE, plot = TRUE, add.lig = TRUE, max.occu = 500,
     most.variables = TRUE, connected = FALSE, verbose = TRUE) {
 
     data(PwC_ReactomeKEGG)
@@ -138,7 +142,7 @@ intraNetwork <- function(dm, goi, coi, obj = NULL, cell.prop = 0.2,
     pw.names <- strsplit(PwC_ReactomeKEGG$pathway, ";")
 
     pw.ses <- table(unlist(pw.names))
-    max.pw.se <- 500
+    max.pw.se <- max.occu
     good.pw <- pw.ses[pw.ses <= max.pw.se]
 
     data.tmp <- data[, cluster == which(c.names == coi)]
@@ -173,7 +177,8 @@ intraNetwork <- function(dm, goi, coi, obj = NULL, cell.prop = 0.2,
                 }
             } else if (is.null(contains.receptors) & verbose) {
                 if (is.null(pathway)) {
-                    message("No pathways including ", goi.ini[qq], ".")
+                    message("No pathways including ", goi.ini[qq], " that
+                        have a maximum occurence of ", max.occu,".")
                 } else {
                     message(pathway, " doesn't include ", goi.ini[qq], ".")
                 }
@@ -187,11 +192,11 @@ intraNetwork <- function(dm, goi, coi, obj = NULL, cell.prop = 0.2,
                 contain.n <- rbind(contain.n, PwC_ReactomeKEGG[grepl(i,
                     PwC_ReactomeKEGG$pathway), ])
             }
-            contain.n <- unique(rbind(contain.n, 
-                PwC_ReactomeKEGG[PwC_ReactomeKEGG$a.gn %in%
-                visible.genes & PwC_ReactomeKEGG$b.gn %in%
-                receptors, ], PwC_ReactomeKEGG[PwC_ReactomeKEGG$a.gn %in%
-                receptors & PwC_ReactomeKEGG$b.gn %in% visible.genes, ]))
+          #  contain.n <- unique(rbind(contain.n, 
+           #     PwC_ReactomeKEGG[PwC_ReactomeKEGG$a.gn %in%
+           #     visible.genes & PwC_ReactomeKEGG$b.gn %in%
+          #      receptors, ], PwC_ReactomeKEGG[PwC_ReactomeKEGG$a.gn %in%
+          #      receptors & PwC_ReactomeKEGG$b.gn %in% visible.genes, ]))
             red.contain.n <- simplify_interactions(contain.n)
 
             # intersect corr network and
