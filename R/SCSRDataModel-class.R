@@ -1565,56 +1565,53 @@ setMethod("cellSignaling", "SCSRDataModel", function(obj,
                     rec.tmp <- NULL
                 }
 
-                for (j in z) {
-                    if (sum(cluster == i) > 1) {
-                        temp <- data[, cluster == j]
-                        temp <- temp[rowSums(temp) > 0, ]
-                        if (sum(is.element(rec, rownames(temp))) > 0) {
-                            rec.temp <- rownames(temp)[is.element(
-                                rownames(temp), rec)]
-                        } else {
-                            rec.temp <- NULL
-                        }
-                        rec.temp <- rec.temp[is.element(rec.temp,
-                            rec.tmp)]
-                        m.rec <- rowSums(data.frame(temp[rec.temp,
-                            ]))/sum(cluster == j)
-                        names(m.rec) <- rec.temp
+                j = i 
+                
+                if (sum(cluster == i) > 1) {
+                    temp <- data[, cluster == j]
+                    temp <- temp[rowSums(temp) > 0, ]
+                    if (sum(is.element(rec, rownames(temp))) > 0) {
+                        rec.temp <- rownames(temp)[is.element(
+                            rownames(temp), rec)]
+                    } else {
+                        rec.temp <- NULL
+                    }
+                    rec.temp <- rec.temp[is.element(rec.temp,
+                        rec.tmp)]
+                    m.rec <- rowSums(data.frame(temp[rec.temp,
+                        ]))/sum(cluster == j)
+                    names(m.rec) <- rec.temp
+                    final <- final.tmp[is.element(final.tmp$receptor,
+                        rec.temp), ]
+                    final <- cbind(final, .LRscore(m.lig[final$ligand],
+                        m.rec[final$receptor], med))
 
-                        final <- final.tmp[is.element(final.tmp$receptor,
-                            rec.temp), ]
-                        final <- cbind(final, .LRscore(m.lig[final$ligand],
-                            m.rec[final$receptor], med))
+                    colnames(final) <- c(c.names[i], c.names[j],
+                        "interaction type", "LRscore")
 
-                        colnames(final) <- c(c.names[i], c.names[j],
-                            "interaction type", "LRscore")
+                    final$`interaction type` <- "autocrine"
 
-                        if (i == j) {
-                            final$`interaction type` <- "autocrine"
-                        }
-
-                        final <- final[final[, 4] > s.score, ]
-                        final <- final[order(final[, 4], decreasing = TRUE), ]
+                    final <- final[final[, 4] > s.score, ]
+                    final <- final[order(final[, 4], decreasing = TRUE), ]
 
 
-                        if (nrow(final) > 0) {
-                            k <- k + 1
-                            out[[k]] <- final
-                            if (verbose) {
-                                message(nrow(final), " interactions from ",
+                    if (nrow(final) > 0) {
+                        k <- k + 1
+                        out[[k]] <- final
+                        if (verbose) {
+                            message(nrow(final), " interactions from ",
                                 c.names[i], " to ", c.names[j])
-                            }
-                            int <- c(int, paste(i, "-", j, sep = ""))
-                            n.int <- c(n.int, paste(c.names[i], "-",
-                                c.names[j], sep = ""))
-                            gr <- graph_from_data_frame(final, 
-                                directed = FALSE)
-                            if (write) {
-                                fwrite(data.frame(final), 
-                                    paste("./cell-signaling/LR_interactions_",
-                                    c.names[i], "-", c.names[j], "-", int.type,
-                                    ".txt", sep = ""), sep = "\t")
-                            }
+                        }
+                        int <- c(int, paste(i, "-", j, sep = ""))
+                        n.int <- c(n.int, paste(c.names[i], "-",
+                            c.names[j], sep = ""))
+                        gr <- graph_from_data_frame(final, 
+                            directed = FALSE)
+                        if (write) {
+                            fwrite(data.frame(final), 
+                                paste("./cell-signaling/LR_interactions_",
+                                c.names[i], "-", c.names[j], "-", int.type,
+                                ".txt", sep = ""), sep = "\t")
                         }
                     }
                 }
