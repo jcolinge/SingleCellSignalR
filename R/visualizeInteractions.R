@@ -69,7 +69,8 @@ visualizeInteractions <- function(obj, dm, pathway = NULL, show.in = NULL,
         message("To plot/save genes related to specific specific pathways,  
             please select specific cluster communication 
             with show.in/write.in.")
-    } else if (!is.null(pathway)) {
+    }
+    if (!is.null(pathway)) {
         if (!any(grepl(paste0(pathway, collapse = "|"), 
             PwC_ReactomeKEGG$pathway))) {
             stop(paste0(pathway, collapse = ", "), " doesn't correspond to any 
@@ -169,41 +170,43 @@ visualizeInteractions <- function(obj, dm, pathway = NULL, show.in = NULL,
         text((coords[1] + coords[2])/2, coords[3] * 1.03, labels = "number")
         dev.off()
     }
-    chordDiagramFromDataFrame(dat, annotationTrack = "grid",
-        preAllocateTracks = 1, directional = 1, direction.type = "arrows",
-        link.arr.length = 0.15, link.arr.width = 0.15, 
-        link.arr.type = "triangle",
-        link.arr.lty = par("lty"), link.arr.lwd = par("lwd"),
-        link.arr.col = "black", grid.col = cols, col = cr[score -
+    if(is.null(show.in)){
+        chordDiagramFromDataFrame(dat, annotationTrack = "grid",
+            preAllocateTracks = 1, directional = 1, direction.type = "arrows",
+            link.arr.length = 0.15, link.arr.width = 0.15, 
+            link.arr.type = "triangle",
+            link.arr.lty = par("lty"), link.arr.lwd = par("lwd"),
+            link.arr.col = "black", grid.col = cols, col = cr[score -
             min(score) + 1], big.gap = 5, small.gap = 2)
-    circos.trackPlotRegion(track.index = 1, panel.fun = function(x, y) {
-        xlim <- get.cell.meta.data("xlim")
-        ylim <- get.cell.meta.data("ylim")
-        sector.name <- get.cell.meta.data("sector.index")
+        circos.trackPlotRegion(track.index = 1, panel.fun = function(x, y) {
+            xlim <- get.cell.meta.data("xlim")
+            ylim <- get.cell.meta.data("ylim")
+            sector.name <- get.cell.meta.data("sector.index")
         circos.text(mean(xlim), ylim[1] + 0.1, sector.name, 
             facing = "inside",
             niceFacing = FALSE, adj = c(0.5, 0), cex = 1.5)
         circos.axis(h = "top", labels = FALSE, major.tick = FALSE,
             major.tick.length = 1, sector.index = sector.name,
             track.index = 2)
-    }, bg.border = NA)
-    bx <- par("usr")
-    coords <- c(bx[1] * 0.95, bx[1] * 0.82, bx[4] * 0.94, bx[4] *
-        0.53)
-    l <- length(cr)
-    dy <- (coords[3] - coords[4])/l
-    for (i in seq_len(l)) {
-        x <- c(coords[1], coords[2], coords[2], coords[1])
-        y <- c(coords[4] + dy * (i - 1), coords[4] + dy * (i -
-            1), coords[4] + dy * i, coords[4] + dy * i)
-        polygon(x, y, col = cr[i], border = cr[i])
+        }, bg.border = NA)
+        bx <- par("usr")
+        coords <- c(bx[1] * 0.95, bx[1] * 0.82, bx[4] * 0.94, bx[4] *
+            0.53)
+        l <- length(cr)
+        dy <- (coords[3] - coords[4])/l
+        for (i in seq_len(l)) {
+            x <- c(coords[1], coords[2], coords[2], coords[1])
+            y <- c(coords[4] + dy * (i - 1), coords[4] + dy * (i -
+                1), coords[4] + dy * i, coords[4] + dy * i)
+            polygon(x, y, col = cr[i], border = cr[i])
+        }
+        text(coords[1] * 0.925, coords[3] * 0.97, 
+            labels = as.character(max(score)), col = "white")
+        text(coords[1] * 0.92, coords[4] * 1.05, 
+            labels = as.character(min(score)), col = "white")
+        text((coords[1] + coords[2])/2, coords[3] * 1.03, labels = "number")
     }
-    text(coords[1] * 0.925, coords[3] * 0.97, 
-        labels = as.character(max(score)), col = "white")
-    text(coords[1] * 0.92, coords[4] * 1.05, 
-        labels = as.character(min(score)), col = "white")
-    text((coords[1] + coords[2])/2, coords[3] * 1.03, labels = "number")
-
+    
 
     ## Chord diagram of lig/rec interactions --------------
 
