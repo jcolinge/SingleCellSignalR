@@ -129,14 +129,6 @@ object.b <- cellClassifying(obj = object, markers = markers)
 
 Cluster annotations are stored in the object's `cluster` slot, alongside the method used, and the eventual markers table.
 
-### Differential expression
-
-Next, differentially expressed genes in one cluster compared to the others are identified using the `dgeCluster()` function.  which relies on **edgeR**. A result table is automatically created in the *cluster-analysis* folder. DGE data and parameters are stored in the **SCSRDataModel** object's `dge.cluster` slot.
-
-```{r, eval=TRUE}
-object <- dgeCluster(obj = object)
-```
-
 ## Using our own processed data
 
 The pre-processing workflow presented previously is optionnal and can be skipped when working on already normalized and clustered data.
@@ -154,6 +146,14 @@ When working with Seurat object, the clustering can be accessed via `seurat.obje
 object <- addClustering(obj = object, cluster.id = clusters)
 ```
 
+## Differential expression
+
+Next, differentially expressed genes in one cluster compared to the others are identified using the `dgeCluster()` function.  which relies on **edgeR**. A result table is automatically created in the *cluster-analysis* folder. DGE data and parameters are stored in the **SCSRDataModel** object's `dge.cluster` slot.
+
+```{r, eval=TRUE}
+object <- dgeCluster(obj = object)
+```
+
 ## Ligand-receptor analysis
 
 Once the preliminary steps illustrated above are completed, **SingleCellSignalR** can be used to generate cellular interaction lists using the `cellSignaling()` function:  
@@ -161,6 +161,8 @@ Once the preliminary steps illustrated above are completed, **SingleCellSignalR*
 ```{r, eval=TRUE}
 object.int <- cellSignaling(obj = object)
 ```
+
+### Visualizations 
 
 A summary of the interactions between cell clusters can be output in the form of a chord diagram by the  `visualize_interactions()` function:  
 
@@ -191,6 +193,16 @@ interactionDotPlot(obj = object.int, interaction = 4)
 
 Many other visualization functions are available to plot interaction results.
 
+### Visualization of pathway(s) of interest
+
+The different visualization functions contain an argument `pathways` that can be set to specify one or several pathways of interest. The pathways need to be contained in the *ReactomeKEGG* database. The function `findpathways()` can be used to access all pathways' names containing a specific keyword.
+
+```{r, echo=TRUE, eval = FALSE}
+pathways <- findPathways("interleukin")
+```
+
+The specific pathway(s) name(s) can then be used in the different functions: `visualizeInteractions()`, `interNetwork()`, `intraNetwork()` and `interactionDotPlot()`.
+
 ## Adding own LR interaction to database
 
 It is possible to add specific LR interactions to be studied. When using the `cellSignaling()` function, specify the LR interactions as a dataframe through the `addLR` argument:
@@ -209,16 +221,6 @@ databaseLR_new <- dataframe(ligand = paste("Ligand ",seq_len(10)), receptor = pa
 object.int <- cellSignaling(obj = object, switchDB = databaseLR_new)
 ```
 
-## Visualize genes related to pathway(s) of interest
-
-The different visualization functions contain an argument `pathways` that can be set to specify one or several pathways of interest. The pathways need to be contained in the *ReactomeKEGG* database. The function `findpathways()` can be used to access all pathways' names containing a specific keyword.
-
-```{r, echo=TRUE, eval = FALSE}
-pathways <- findPathways("interleukin")
-```
-
-The specific pathway(s) name(s) can then be used in the different functions: `visualizeInteractions()`, `interNetwork()`, `intraNetwork()` and `interactionDotPlot()`.
-
 <span style="color:white">red</span>   
 <span style="color:white">red</span>   
 <span style="color:white">red</span> 
@@ -235,7 +237,6 @@ For this example we use the scRNAseq dataset from Tirosh et al. [4]. We use only
 
 ```{r, eval=TRUE}
 data(Patient80, package = "SingleCellSignalR")
-data <- data
 
 object <- dataPrepare(file = data, lower=0.05,upper=0.0155)
 ```
@@ -288,14 +289,14 @@ object.int <- cellSignaling(obj = object)
 
 And then visualized, eventually specifying pathway(s) to study:
 
-```{r, eval=TRUE, fig.height=7, fig.width=7}
+```{r, eval=TRUE}
 pathways <- findPathways("downregulation")
 p <- pathways[2,1]
-visualizeInteractions(obj = object.int, dm = object, show.in = c(4,1), pathway = p)
+visualizeInteractions(obj = object.int, dm = object, show.in = c(3,1), pathway = p)
 ```
 
-```{r, eval=TRUE, fig.height=7, fig.width=7}
-interactionDotPlot(obj = object.int, dm = object, interaction = 4, pathway = p)
+```{r, eval=TRUE}
+interactionDotPlot(obj = object.int, dm = object, interaction = 3, pathway = p)
 ```
 
 An intercellular network can also be generated to map the ligand/receptor interactions linked with specific pathway(s) calling the `inter_network()` function:  
@@ -304,11 +305,11 @@ An intercellular network can also be generated to map the ligand/receptor intera
 inter.net <- interNetwork(obj = object.int, dm = object, pathway = p)
 ```
 
-We can be interested in genes participating in pathways with a receptor of interest inside a cluster of interest. Let us say *EGFR* in the first cluster.
+We can be interested in genes participating in pathways with a receptor of interest inside a cluster of interest. Let us say *EGFR* in the second cluster.
 
 ```{r, eval=TRUE}
 g <- "EGFR"
-c <- cluster(object)$names[1]
+c <- cluster(object)$names[2]
 intra.net <- intraNetwork(dm = object, obj = object.int, goi = g, coi = c, pathway = p)
 ```
 
@@ -320,7 +321,7 @@ For this example we use the scRNAseq dataset from `recount3`'s *SRP066963* proje
 
 ```{r}
 data(Mouse, package = "SingleCellSignalR")
-data <- data
+data <- matrix
 
 object <- dataPrepare(file = data, lower=0.05,upper=0.0155, species = "mmusculus")
 ```
