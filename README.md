@@ -10,8 +10,6 @@
 
 SingleCellSignalR is used to infer ligand-receptor (L-R) interactions from single cells experiments.
 
-available from Bioconductor [here](https://www.bioconductor.org/packages/release/bioc/html/SingleCellSignalR.html).
-
 ## Installation
 
 ``` R
