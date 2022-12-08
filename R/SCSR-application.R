@@ -6,7 +6,7 @@ package <- '/data2/villemin/SingleCellSignalR/SingleCellSignalR'
 
 devtools::install(glue("{baseDir}{package}"))
 
-library(SingleCellSignalR)
+suppressPackageStartupMessages(library(SingleCellSignalR))
 
 print("CreateDatabase on Request")
 database::createDatabase()
