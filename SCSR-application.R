@@ -17,15 +17,20 @@ print("checkLastVersion FALSE")
 print("checkLastVersion TRUE")
 #checkLastVersion(update=TRUE)
 
-print("getInteractions")
+print("getInteractions 2")
 
 interactions <- getInteractions()
 head(interactions)
 dim(interactions)
 
-getInteractions(idRelease=1)
+print("getInteractions 1")
+
+interactions <- getInteractions(idRelease=1)
 head(interactions)
 dim(interactions)
 
+#getInteractions(idRelease=65)
 
-getInteractions(idRelease=65)
+complexes <- getComplexes()
+head(complexes)
+dim(complexes)
