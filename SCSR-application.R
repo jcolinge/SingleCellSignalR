@@ -17,7 +17,7 @@ library(SingleCellSignalR)
 
  
 #data <- updatePathwaysFromFile(file=glue("{baseDir}{Input}/c2.cp.reactome.v2022.1.Hs.json"),
-						  pathwaySource="REACTOME")
+						#  pathwaySource="REACTOME")
 #head(data)
 #tail(data)
 
