@@ -2,9 +2,11 @@ library(glue)
 library(devtools)
 library(dplyr)
 library(stringr)
+library(foreach)
+library(doParallel)
 
-# Create 3 dirs
-baseDir  <- '/data/villemin'
+# Create 4 dirs
+baseDir <- '/data/villemin'
 package <- '/data2/villemin/SingleCellSignalR/SingleCellSignalR'
 Output  <- '/data2/villemin/SingleCellSignalR/Output'
 Input   <- '/data2/villemin/SingleCellSignalR/Input'
@@ -13,32 +15,19 @@ devtools::install(glue("{baseDir}{package}"))
 library(SingleCellSignalR)
 #suppressPackageStartupMessages(library(SingleCellSignalR))
 
-#data <- updatePathwaysFromJsonFile(jsonFile=glue("{baseDir}{Input}/c2.cp.reactome.v2022.1.Hs.json"),
-						  #pathwaySource="REACTOME")
-						  
+ 
+#data <- updatePathwaysFromFile(file=glue("{baseDir}{Input}/c2.cp.reactome.v2022.1.Hs.json"),
+						  pathwaySource="REACTOME")
+#head(data)
+#tail(data)
+
 #data(example_dataset, package = "SingleCellSignalR")
 # data <- as.data.frame(data)
 #data <- example_dataset
 #object <- dataPrepare(file = data)
 #object <- cellClustering(obj = object, n = 10, method = "kmeans")
 #object.int <- cellSignaling(obj = object)
-print("###############")
-head(data)
-str(data)
 
- data <- jsonlite::read_json(glue("{baseDir}{Input}/c2.cp.reactome.v2022.1.Hs.json",simplifyVector = TRUE)
-
-print("###############")
-
-names(data[[1]])
-data[[1]]$exactSource
-data[[1]]$geneSymbols
-length(unlist(data[[1]]$geneSymbols))
-data[[1]]$geneSymbols[2]
-
-react <-  data.frame('Reactome ID'=character(),'Gene name'=character(),'Reactome name'=character()) 
-
-stop()
 
 
 print("CreateDatabase on Request")

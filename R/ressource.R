@@ -180,7 +180,6 @@ checkLastVersion <- function(update=FALSE) {
 #'
 #' @return dataframe with ID, Name and Gene
 #'
-#' @import jsonlite
 #' @export
 #' @examples
 #' print('updatePathwaysFromFile')
@@ -196,16 +195,24 @@ updatePathwaysFromFile <- function(file,
         if (! pathwaySource %in% c("GO-BP","REACTOME"))
            stop("GO-BP and REACTOME are the only keywords alllowed.")
    
-        if (! file.exists(jsonFile))
+        if (! file.exists(file))
            stop("This file doesn't exist.")
         
         if(fileType=="json")
-           db <- .formatPathwaysFromJson(file=jsonFile,
+           db <- .formatPathwaysFromJson(file=file,
                 pathwaySource=pathwaySource)
         else if(fileType=="gmt")
-           db <- .formatPathwaysFromGmt(file=jsonFile,
+           db <- .formatPathwaysFromGmt(file=file,
                 pathwaySource=pathwaySource)
         else {  stop("File format is not defined correctly.")}
+
+        # Due to the fact React and Go are organized differently
+        if(pathwaySource=="REACTOME"){
+            names(db)<-c('Reactome name','Gene name','Reactome ID')
+        }
+
+        if(pathwaySource=="GO-BP")
+            names(db)<-c('GO ID','Gene name','GO name')
 
 return (db)
 
@@ -216,16 +223,24 @@ return (db)
 #' @param file    Path to file.
 #' @param pathwaySource    Two options "GO-BP" or "REACTOME".
 #'
+#' @return Dataframe with pathwayID, geneName and pathwayName
+#'
+#' @importFrom foreach %do% %dopar%
+#' @import doParallel
+#' @import jsonlite
 .formatPathwaysFromJson <- function(file,
     pathwaySource=NULL) {
     
-    d <- jsonlite::read_json(jsonFile,simplifyVector = TRUE)
+    data <- jsonlite::read_json(file,simplifyVector = TRUE)
 
-    if(pathwaySource=="REACTOME")
-       db <-  data.frame('Reactome ID'=character(),'Gene name'=character(),'Reactome name'=character()) 
+    db <-foreach::foreach(indexPathway=1:length(data), 
+                    .combine = 'rbind') %dopar% { 
+            data.frame(pathwayID=rep(data[[indexPathway]]$exactSource,length(data[[indexPathway]]$exactSource)),
+                      geneName=unlist(data[[indexPathway]]$geneSymbols)[1:length(unlist(data[[indexPathway]]$geneSymbols))],
+                      pathwayName= rep(names(data)[[indexPathway]],length(names(data)[[indexPathway]])))
+    }
 
-    if(pathwaySource=="GO-BP")
-       db <-  data.frame('GO ID'=character(),'Gene name'=character(),'GO name'=character()) 
+return (db)
 
 } # .formatPathwaysFromJson
 
@@ -247,12 +262,12 @@ return (db)
 #' Note that you need to unzip the file to read the content.
 
 #' The code is inspired from read.gmt function
-#' from gsa R package.
+#' from the gsa R package.
 #'
 #' @param file    Path to GMT file
 #' @param pathwaySource   Two options "GO-BP" or "REACTOME"
 #'
-#' @return gmt file as dataframe
+#' @return Dataframe with pathwayID, geneName and pathwayName
 #'
 #' @importFrom foreach %do% %dopar%
 #' @import doParallel
@@ -311,13 +326,6 @@ return (db)
                       c=rep(data$geneset.descriptions[[i]],length(data$genesets[[i]])))
         }
 
-        # Due to the fact React and Go are organized differently
-        if(pathwaySource=="REACTOME"){
-            names(dataframeFromGmt)<-c('Reactome name','Gene name','Reactome ID')
-        }
-
-        if(pathwaySource=="GO-BP")
-            names(dataframeFromGmt)<-c('GO ID','Gene name','GO name')
 
 return(dataframeFromGmt)
 
