@@ -1,12 +1,19 @@
 Package: SingleCellSignalR
-Title: Cell Signalling Using Single Cell RNAseq Data Analysis
+Type: Package
+Title: Cell Signalling analysis using Single‐cell RNA sequencing (scRNA‐seq) technology
 Version: 1.99.24
-Authors@R: c(person("Simon", "Cabello-Aguilar", email = "simon.cabello-aguilar@inserm.fr", role = c("aut")), person("Jacques", "Colinge", email = "jacques.colinge@inserm.fr", role = c("cre","aut")))
+Authors@R: c(
+    person("Simon", "Cabello-Aguilar", email = "simon.cabelloaguilar@gmail.com", role = c("cre"),comment = c(ORCID ="0000-0002-2904-7430")),
+    person("Jacques","Colinge",email="jacques.colinge@inserm.fr",role="aut",comment = c(ORCID = "0000-0003-2466-4824")),
+    person("Jean-Philippe","Villemin",email="jpvillemin@gmail.com",role="aut",comment = c(ORCID = "0000-0002-1838-5880")),
+    person("Loane","Danes",email="loane.danes@laposte.net",role="auth"))
+URL: https://github.com/jcolinge/SingleCellSignalR
+BugReports: https://github.com/jcolinge/SingleCellSignalR/issues
 Description: Allows single cells RNA seq data analysis, clustering, creates internal network and infers cell-cell interactions. It relies on the LRdb database and a KEGG-Reactome pathway database.
-Depends: R (>= 4.2.0)
-License: GPL-3
+License: CeCILL | file LICENSE
 Encoding: UTF-8
-LazyData: false
+LazyData: FALSE
+Depends: R (>= 4.0)
 Imports:
   BiocManager,
   BiocFileCache,
@@ -22,6 +29,7 @@ Imports:
   ggplot2,
   grDevices,
   edgeR,
+  jsonlite,
   SIMLR,
   SingleR,
   data.table,

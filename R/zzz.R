@@ -2,6 +2,7 @@
 
     cacheDir <- rappdirs::user_cache_dir("SingleCellSignalR")
     Sys.setenv("SingleCellSignalR_CACHEDIR" = cacheDir)
+    
     url <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SingleCellSignalR.db"
     Sys.setenv("SingleCellSignalR_URL"= url)
 

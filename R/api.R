@@ -13,8 +13,6 @@
 #' getComplexes()
 getComplexes <- function(idRelease=NULL) { 
 
-    print("getComplexes")
-
     cacheDir <- Sys.getenv("SingleCellSignalR_CACHEDIR")
     url      <-  Sys.getenv("SingleCellSignalR_URL")
  
@@ -32,28 +30,27 @@ getComplexes <- function(idRelease=NULL) {
     if(nrow(release)==0)
         cat(cli::cli_abort("ID Release {idRelease} doesn't exist.","\n"))
 
-    complexesL <- DBI::dbGetQuery(SingleCellSignalRCon, 
-        'SELECT Clex.name, Clex.size,Clex.source,Comp.name,Comp.type
+    complexes <- DBI::dbGetQuery(SingleCellSignalRCon, 
+        'SELECT Clex.name, Clex.size,Clex.source,Comp.name,Comp.type,CC.stoichiometry 
         FROM Complex as Clex  
         inner join Component as Comp
         inner join Complex_Component as CC
         on Comp.id = CC."id.component_fk" AND  Clex.id = CC."id.complex_fk" 
-        where Comp."id.release_fk" = ? AND Comp.type = ?'
-        , params = list(release$id,"L"))
+        where Comp."id.release_fk" = ?'
+        , params = list(release$id))
 
-    
-    complexesR <- DBI::dbGetQuery(SingleCellSignalRCon, 
-   'SELECT Clex.name, Clex.size,Clex.source,Comp.name,Comp.type
-        FROM Complex as Clex  
-        inner join Component as Comp
-        inner join Complex_Component as CC
-        on Comp.id = CC."id.component_fk" AND  Clex.id = CC."id.complex_fk" 
-        where Comp."id.release_fk" = ? AND Comp.type = ?'
-      , params = list(release$id,"R"))
+    #complexesR <- DBI::dbGetQuery(SingleCellSignalRCon, 
+   #'SELECT Clex.name, Clex.size,Clex.source,Comp.name,Comp.type,CC.stoichiometry
+    #    FROM Complex as Clex  
+    #    inner join Component as Comp
+    #    inner join Complex_Component as CC
+    #    on Comp.id = CC."id.component_fk" AND  Clex.id = CC."id.complex_fk" 
+    #    where Comp."id.release_fk" = ?'
+    #  , params = list(release$id))
 
     DBI::dbDisconnect(SingleCellSignalRCon)
 
-    complexes <- rbind(complexesL, complexesR)
+    #complexes <- rbind(complexesL, complexesR)
 
     return(invisible(complexes))
 
