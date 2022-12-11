@@ -6,7 +6,7 @@ Authors@R: c(
     person("Simon", "Cabello-Aguilar", email = "simon.cabelloaguilar@gmail.com", role = c("cre"),comment = c(ORCID ="0000-0002-2904-7430")),
     person("Jacques","Colinge",email="jacques.colinge@inserm.fr",role="aut",comment = c(ORCID = "0000-0003-2466-4824")),
     person("Jean-Philippe","Villemin",email="jpvillemin@gmail.com",role="aut",comment = c(ORCID = "0000-0002-1838-5880")),
-    person("Loane","Danes",email="loane.danes@laposte.net",role="auth"))
+    person("Loane","Danes",email="loane.danes@laposte.net",role="aut"))
 URL: https://github.com/jcolinge/SingleCellSignalR
 BugReports: https://github.com/jcolinge/SingleCellSignalR/issues
 Description: Allows single cells RNA seq data analysis, clustering, creates internal network and infers cell-cell interactions. It relies on the LRdb database and a KEGG-Reactome pathway database.
