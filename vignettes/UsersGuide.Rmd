@@ -45,7 +45,7 @@ Each analysis is organized around a working directory (or project folder):
 
 ![][id0]
 
-[id0]: ./directory.png
+[id0]: ../man/figures/directory.png
 
 # Quick Start
 
@@ -70,7 +70,8 @@ When not working on humans, the species needs to be indicated through the `speci
 
 ```{r, echo=FALSE, eval=TRUE, results='hide'}
 library(SingleCellSignalR)
-data(example_dataset, package = "SingleCellSignalR")
+system.file("extdata", "scRNAseq_dataset.txt", package = "SingleCellSignalR")
+
 # data <- as.data.frame(data)
 data <- example_dataset
 ```
@@ -320,7 +321,8 @@ At this point the intercellular network have been generated and exported in text
 For this example we use the scRNAseq dataset from `recount3`'s *SRP066963* project. Because the dataset is not a human dataset the species studied must be given upon preparing the data: 
 
 ```{r}
-data(Mouse, package = "SingleCellSignalR")
+system.file("extdata", "mouse_scRNAseq_dataset.txt", package = "SingleCellSignalR")
+
 data <- matrix
 
 object <- dataPrepare(file = data, lower=0.05,upper=0.0155, species = "mmusculus")
