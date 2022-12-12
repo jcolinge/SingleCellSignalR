@@ -1,12 +1,31 @@
 .onLoad <- function(...) {
+    
+    ############################
+    ##        Database        ##
+    ############################
 
-    cacheDir <- rappdirs::user_cache_dir("SingleCellSignalR")
+    # handle directory creation over different OS
+    # same as tools::R_user_dir("SingleCellSignalR", which="cache")
+    cacheDir <- rappdirs::user_cache_dir("R/SingleCellSignalR")
     Sys.setenv("SingleCellSignalR_CACHEDIR" = cacheDir)
     
-    url <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SingleCellSignalR.db"
-    Sys.setenv("SingleCellSignalR_URL"= url)
-
     createDatabase(onRequest=FALSE)
+
+    ################################
+    ##   Ressource Cache Files   ###  
+    ################################
+
+    urlDatabase <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/SingleCellSignalR.db"
+    urlGo       <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/gobp.rds"
+    urlReactome <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/reactome.rds"
+    urlPwC <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/PwC_ReactomeKEGG.rds"
+
+    Sys.setenv("SingleCellSignalR_DB_URL"= urlDatabase)
+    Sys.setenv("SingleCellSignalR_GO_URL" = urlGo)
+    Sys.setenv("SingleCellSignalR_Reactome_URL" = urlReactome)
+    Sys.setenv("SingleCellSignalR_PwC_URL" = urlPwC)
+
+    createRessources(onRequest=FALSE)
 
 }
 

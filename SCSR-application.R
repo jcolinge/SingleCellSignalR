@@ -15,7 +15,22 @@ devtools::install(glue("{baseDir}{package}"))
 library(SingleCellSignalR)
 #suppressPackageStartupMessages(library(SingleCellSignalR))
 
- 
+cacheInfo()
+cacheClear()
+cacheInfo()
+createRessources(verbose=FALSE)
+cacheInfo()
+
+print("reactome")
+reactome <-  getRessource(ressource="Reactome")
+
+print("gobp")
+GObp     <-  getRessource(ressource="GO-BP")
+
+print("pwc")
+pwc     <-  getRessource(ressource="PwC")
+
+stop()
 #data <- updatePathwaysFromFile(file=glue("{baseDir}{Input}/c2.cp.reactome.v2022.1.Hs.json"),
 						#  pathwaySource="REACTOME")
 #head(data)
@@ -26,18 +41,16 @@ library(SingleCellSignalR)
 #data <- example_dataset
 #object <- dataPrepare(file = data)
 #object <- cellClustering(obj = object, n = 10, method = "kmeans")
-#object.int <- cellSignaling(obj = object)
-
 
 
 print("CreateDatabase on Request")
 #createDatabase()
 
 print("checkLastVersion FALSE")
-#checkLastVersion(update=FALSE)
+#checkDatabaseLastVersion(update=FALSE)
 
 print("checkLastVersion TRUE")
-#checkLastVersion(update=TRUE)
+#checkDatabaseLastVersion(update=TRUE)
 
 print("getInteractions 2")
 

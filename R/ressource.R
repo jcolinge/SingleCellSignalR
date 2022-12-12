@@ -6,7 +6,7 @@
 #' download again. This will overwrite 
 #' pre-existing database. Default is True.
 #'
-#' @import httr rappdirs
+#' @import httr
 #' @importFrom cli col_cyan
 #' @export
 #' @examples
@@ -20,7 +20,7 @@ createDatabase <- function(onRequest=TRUE){
     if (!dir.exists(cacheDir))  
         dir.create(cacheDir)        
        
-    url <-  Sys.getenv("SingleCellSignalR_URL")
+    url <-  Sys.getenv("SingleCellSignalR_DB_URL")
  
     databaseFilePath <- paste(cacheDir
         ,basename(url)
@@ -41,7 +41,7 @@ createDatabase <- function(onRequest=TRUE){
          
          connexionObject <- DBI::dbCanConnect(RSQLite::SQLite(), databaseFilePath)
 
-        .checkValidity(connexionObject=connexionObject)
+        .checkDatabaseValidity(connexionObject=connexionObject)
 
     }
 
@@ -86,7 +86,7 @@ createDatabase <- function(onRequest=TRUE){
 #' @import DBI RSQLite 
 #' @importFrom cli cli_alert_danger
 #' @NoRd
-.checkValidity <- function(connexionObject) {
+.checkDatabaseValidity <- function(connexionObject) {
 
     # check file is a database
     tryCatch(connexionObject,
@@ -118,19 +118,19 @@ createDatabase <- function(onRequest=TRUE){
 #' @examples
 #' print("checkLastVersion")
 #' checkLastVersion(update=FALSE)
-checkLastVersion <- function(update=FALSE) {
+checkDatabaseLastVersion <- function(update=FALSE) {
 
     databaseFilePathCopy <- paste(Sys.getenv("SingleCellSignalR_CACHEDIR")
         ,"SingleCellSignalR.copy.db"
         ,sep = "/")
 
-    isDownloaded <- .downloadDatabase(Sys.getenv("SingleCellSignalR_URL"),databaseFilePathCopy)
+    isDownloaded <- .downloadDatabase(Sys.getenv("SingleCellSignalR_DB_URL"),databaseFilePathCopy)
     if(!isDownloaded)
             stop("New Ligand-Receptor database was not downloaded successfully.")
 
     connexionObject <- DBI::dbCanConnect(RSQLite::SQLite(), databaseFilePathCopy)
 
-    .checkValidity(connexionObject)
+    .checkDatabaseValidity(connexionObject)
     
     md5Local <- tools::md5sum(databaseFilePathCopy)
 
@@ -144,7 +144,7 @@ checkLastVersion <- function(update=FALSE) {
          if (update){ 
             #createDatabase(onRequest=update) 
             databaseFilePath <- paste(Sys.getenv("SingleCellSignalR_CACHEDIR")
-            ,basename(Sys.getenv("SingleCellSignalR_URL"))
+            ,basename(Sys.getenv("SingleCellSignalR_DB_URL"))
             ,sep = "/")
             unlink(databaseFilePath)
             file.rename(databaseFilePathCopy,databaseFilePath)
@@ -166,7 +166,7 @@ checkLastVersion <- function(update=FALSE) {
 #' Those can be updated using
 #' json files from
 #' the Human Molecular Signatures Database (MSigDB)
-#' at \href{URL}{https://www.gsea-msigdb.org/}
+#' at \url{https://www.gsea-msigdb.org/}
 #'
 #' \code{resetDownstreamPathways} is a function
 #' we provide to user to refresh REACTOME 
@@ -258,7 +258,7 @@ return (db)
 #'
 #' You can find an example here.
 #' - For Reactome. (Directly from their website)
-#' \href{URL}{https://reactome.org/download/current/ReactomePathways.gmt.zip}
+#' \url{https://reactome.org/download/current/ReactomePathways.gmt.zip}
 #' Note that you need to unzip the file to read the content.
 
 #' The code is inspired from read.gmt function
@@ -330,3 +330,244 @@ return (db)
 return(dataframeFromGmt)
 
 } #.formatPathwaysFromGmt
+
+ 
+
+
+#' Creache all ressources.
+#'
+#' Create cache for all ressources (pathways, or PWC network)
+#' downloaded from the web when library is first loaded.
+#' This part is handled with BiocFileCache.
+#' Otherwise datatabase, is handled by another process
+#' not relying on BiocFileCache instance.
+#'
+#' @param onRequest logical True if you force
+#' download again. This will overwrite 
+#' pre-existing database. Default is True.
+#' @param verbose Default is FALSE
+#'
+#' @export 
+#' @examples
+#' if(FALSE)
+#'  createRessources() 
+createRessources <- function(onRequest=TRUE,verbose=FALSE) {
+
+   cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
+   ressourcesCacheDir <- paste(cacheDir,"ressources",sep="/")
+     
+   # Do it once, onLoad
+   if(!dir.exists(ressourcesCacheDir) | onRequest) {
+        .addCache(url=Sys.getenv("SingleCellSignalR_GO_URL"),cacheDir=ressourcesCacheDir,ressourceName="GO-BP",verbose=verbose)
+        .addCache(url=Sys.getenv("SingleCellSignalR_Reactome_URL"),cacheDir=ressourcesCacheDir,ressourceName="Reactome",verbose=verbose)
+        .addCache(url=Sys.getenv("SingleCellSignalR_PwC_URL"),cacheDir=ressourcesCacheDir,ressourceName="PwC",verbose=verbose)
+
+    }
+}
+
+
+#' Add cache for ressources.
+#'
+#' Add cache for ressources (pathways, or PWC network)
+#' downloaded from the web.
+#' This part is handled with BiocFileCache.
+#' Otherwise datatabase, is handled by another process
+#' not relying on BiocFileCache instance.
+#'
+#' @param url    Path to file on the web.
+#' @param ressourceName   Ressource name.
+#' @param cacheDir   Absolute path to cache directory.
+#' @param verbose   Default FALSE
+
+#' @import BiocFileCache
+#' @import httr
+#' @keywords internal
+.addCache <- function(url,cacheDir,ressourceName,verbose=FALSE) {
+
+        bfc <- BiocFileCache::BiocFileCache(cacheDir,ask = FALSE)
+   
+        config <- httr::set_config(config(ssl_verifypeer = 0L,ssl_verifyhost = 0L))
+            
+        # if fname="exact" remove the unique identifier
+        BiocFileCache::bfcadd(bfc,rname=ressourceName,config=config,fpath=url)
+
+        if(verbose){
+            print(BiocFileCache::bfccache(bfc))
+            print(length(bfc)) 
+            print(BiocFileCache::bfcinfo(bfc))
+        }
+}
+
+#' Get ressource from the cache.
+#'
+#' Get  ressources (pathways, or PathwayCommons network 
+#' from \url{https://www.pathwaycommons.org/})
+#' stored in the cache.
+#'
+#' @param ressourceName   Ressource name.
+#'
+#' @importFrom cli cli_alert_danger
+#' @export
+#' @examples
+#' reactome <-  getRessource(ressource="Reactome")
+getRessource <- function(ressourceName=NULL) {
+
+    if (!ressourceName %in% c("GO-BP","Reactome","PwC")){
+        cat(cli::cli_alert_danger("GO-BP and Reactome are the only keywords alllowed.","\n"))
+        stop() 
+    }
+    cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
+    ressourcesCacheDir <- paste(cacheDir,"ressources",sep="/")
+
+    bfc <- BiocFileCache::BiocFileCache(ressourcesCacheDir,ask = FALSE)
+
+    dataframe <- .readFromCache(bfc=bfc,ressourceName=ressourceName)
+
+    return(dataframe)
+}
+
+#' Read from the cache.
+#'
+#' Access  ressources (pathways, or PathwayCommons network 
+#' from \url{https://www.pathwaycommons.org/})
+#' stored in the cache.
+#'
+#' @param bfc Object of class BiocFileCache, created by a call to 
+#' BiocFileCache::BiocFileCache()
+#' @param ressourceName keyword associated to a specific ressourceName
+#' @keywords internal
+.readFromCache <- function(bfc,ressourceName) {
+
+    cacheHits <- bfcquery(bfc,query=ressourceName,field="rname")
+    if(nrow(cacheHits) == 0) {
+        cat(cli::cli_alert_danger("No cache result found.","\n"))
+        stop() 
+    }
+    else if(nrow(cacheHits) > 1) {
+         cat(cli::cli_alert_danger("Multiple cache results found.","\n"))
+         stop("Please clear your cache by running cacheClear()!")
+    } else {
+        rid <- cacheHits$rid
+        result <- readRDS( bfc[[ rid ]] )
+        return(result)
+    }
+}
+
+#' Check existence of a record in the cache.
+#'
+#' Check if the cache record exists or not, by passing
+#' to the function an associated keyword
+#' associated to the ressource we are looking for.
+#'
+#' @param bfc Object of class BiocFileCache, created by a call to 
+#' BiocFileCache::BiocFileCache()
+#' @param ressourceName keyword associated to a specific ressource name
+#' 
+#' @keywords internal
+#' @return logical This function returns TRUE if a record with 
+#' the requested keyword already  exists in the file cache,
+#'  otherwise returns FALSE.
+.checkInCache <- function(bfc,ressourceName) {
+    cacheHits <- bfcquery(bfc, query = ressourceName, field = "rname")
+    as.logical(nrow(cacheHits))
+}
+
+#' Check valid cache.
+#'
+#' This function checks if a cache entry is a valid RDS file.
+#' Returns TRUE if the cache entry is valid, FALSE otherwise.
+#' In the case of an invalid file the cache entry and file are 
+#' deleted.
+#'
+#' @param bfc Object of class BiocFileCache, created by a call to 
+#' BiocFileCache::BiocFileCache()
+#' @param ressourceName keyword associated to a specific ressource name.
+#' @importFrom cli cli_alert_danger
+#' @importFrom BiocFileCache bfcremove
+#' @keywords internal
+.checkValidCache <- function(bfc, ressourceName) {
+    cacheHits <- bfcquery(bfc,query=ressourceName,field="rname")
+    if(nrow(cacheHits) == 0) {
+       cat(cli::cli_alert_danger("No cache result found.","\n"))
+       stop() 
+    }
+    else if(nrow(cacheHits) > 1) {
+         cat(cli::cli_alert_danger("Multiple cache results found.","\n"))
+         stop("Please clear your cache by running cacheClear()!")
+    } else {
+        test <- tryCatch(is.list(infoRDS(cacheHits$rpath[1])), 
+                         error = function(e) { return(FALSE) })
+        if(!test) 
+            BiocFileCache::bfcremove(bfc, cacheHits$rid[1])
+        return(test)
+    }
+}
+
+
+#' Delete cache content.
+#'
+#' Delete the content of cache directory.
+#'
+#' @importFrom BiocFileCache removebfc
+#' @export
+#' @examples
+#  if(FALSE)
+#   cacheClear()
+cacheClear <- function() {
+
+    cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
+    ressourcesCacheDir <- paste(cacheDir,"ressources",sep="/")
+
+    bfc <- BiocFileCache::BiocFileCache(ressourcesCacheDir, ask = FALSE)
+    BiocFileCache::removebfc(bfc, ask = FALSE)
+
+    #dir.create(ressourcesCacheDir)
+    message("SingleCellSignalR cache has been deleted.\n", 
+                "- Location: ", ressourcesCacheDir, "\n",
+                "- No. of files: 0", "\n")
+
+}
+
+#' Get cache content informations..
+#'
+#' Get cache content informations.
+#'
+#' @importFrom BiocFileCache
+#' @importFrom cli cli_alert_danger
+#' @export
+#' @examples
+#  if(FALSE)
+#   cacheInfo()
+cacheInfo <- function() {
+
+    cacheDir <-  Sys.getenv(x = "SingleCellSignalR_CACHEDIR")
+    ressourcesCacheDir <- paste(cacheDir,"ressources",sep="/")
+    
+    # safeguard
+    if(!dir.exists(ressourcesCacheDir)) {
+        dir.create(ressourcesCacheDir)
+    } 
+
+    files <-  list.files(ressourcesCacheDir)
+
+    if(length(files)==0) {
+        message("SingleCellSignalR cache uninitialized.\n", 
+                "- Location: ", ressourcesCacheDir, "\n",
+                "- No. of files: ", length(files), "\n")
+
+    } else {
+        
+        bfc <- BiocFileCache::BiocFileCache(ressourcesCacheDir, ask = FALSE)
+        files <- bfcinfo(bfc)$rpath
+        total_size <- sum(file.size(files))
+        size_obj <- structure(total_size, class = "object_size")
+    
+        message("SingleCellSignalR cache: \n", 
+                "- Location: ", ressourcesCacheDir, "\n",
+                "- No. of files: ", length(files), "\n",
+                "- Total size: ", format(size_obj, units = "auto"), "\n")
+    }
+
+    return(invisible(ressourcesCacheDir))
+}
+
