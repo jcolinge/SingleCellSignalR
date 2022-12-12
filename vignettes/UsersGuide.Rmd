@@ -61,17 +61,16 @@ There are two ways of loading the data in `SingleCellSignalR` through the `dataP
 - the read counts matrix is opened in the R environment: the matrix is given as the `file` parameter.
 - the file containing the read counts is in the working directory: the file's name is given as the `file` parameter. 
 
-```r
-data <- "example_data.txt"
-```
 
 Data processing can then start. By default the `dataPrepare()` function eliminates non expressed genes before performing read count normalization through a method by quantile. 
 When not working on humans, the species needs to be indicated through the `species` parameter and an ortholog genes correspondence will be performed.
 
-```{r, echo=FALSE, eval=TRUE, results='hide'}
+```{r, echo=TRUE, eval=TRUE}
 library(SingleCellSignalR)
-example_dataset <- system.file("extdata", "scRNAseq_dataset.txt", package = "SingleCellSignalR")
-
+example_dataset_path <- system.file("extdata", "scRNAseq_dataset.txt", package = "SingleCellSignalR")
+print(example_dataset_path)
+example_dataset <-  read.csv(example_dataset_path, sep = "\t")
+print(example_dataset)
 # data <- as.data.frame(data)
 data <- example_dataset
 ```
@@ -107,9 +106,10 @@ At this step, specific annotation can be attributed to each cluster by specifyin
 
 A 2D tsne projection can be calculated and plotted (default `plot = TRUE`).
 
-```{r, echo=TRUE, eval=TRUE}
+```{r, echo=TRUE, eval=FALSE}
 markers = markers(c("immune","tme"))
-object <- cellClustering(obj = object, n = 10, method = "simlr", classification = "by cluster",
+object <- cellClustering(obj = object, n = 10, method = "simlr", 
+                classification = "by cluster",
                          markers = markers)
 ```
 
@@ -123,7 +123,7 @@ Cluster annotations are stored in the object's `cluster` slot, alongside the met
 
 The gene expression for each cell is compared with the signatures described in the `markers` table. If no projection method is available in the object (userly inputted or `cellClustering()` run previously), tsne coordinates will be calculated at this step.
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 markers <- markers(c("immune","tme"))
 object.b <- cellClassifying(obj = object, markers = markers)
 ```
@@ -151,7 +151,7 @@ object <- addClustering(obj = object, cluster.id = clusters)
 
 Next, differentially expressed genes in one cluster compared to the others are identified using the `dgeCluster()` function.  which relies on **edgeR**. A result table is automatically created in the *cluster-analysis* folder. DGE data and parameters are stored in the **SCSRDataModel** object's `dge.cluster` slot.
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 object <- dgeCluster(obj = object)
 ```
 
@@ -159,7 +159,7 @@ object <- dgeCluster(obj = object)
 
 Once the preliminary steps illustrated above are completed, **SingleCellSignalR** can be used to generate cellular interaction lists using the `cellSignaling()` function:  
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 object.int <- cellSignaling(obj = object)
 ```
 
@@ -167,7 +167,7 @@ object.int <- cellSignaling(obj = object)
 
 A summary of the interactions between cell clusters can be output in the form of a chord diagram by the  `visualize_interactions()` function:  
 
-```{r, eval=TRUE, fig.height=7, fig.width=7}
+```{r, eval=FALSE, fig.height=7, fig.width=7}
 visualizeInteractions(obj = object.int, dm = object)
 ```
 
@@ -175,20 +175,20 @@ This function will create a *plot* in the R plot window.
 
 The details of the interactions between two clusters, for example cluster 1 and 2, can also be shown in the plot window with the `visualize_interactions()` function. Note that in the example below we ask for the display of two pairs of cell clusters, pair 1 that contains interactions from cluster 1 to 2, and pair 4 from cluster 2 to 1. (`names(LRinter(object.inter))` returns the cell cluster names in each pair, see function `visualize_interactions()` details.)   
 
-```{r, eval=TRUE, fig.height=7, fig.width=7}
+```{r, eval=FALSE, fig.height=7, fig.width=7}
 visualizeInteractions(obj = object.int, dm = object,show.in=c(1,4))
 ```   
 
 *Remark: We observe that in the chord diagrams above, the “specific” interactions were highlighted with a thick black line.*
 
 And these plots can be saved into pdf files in the *images* folder using the `write.in` argument of the `visualize_interactions()` function.  
-```r
+```r , eval=FALSE
 visualize_interactions(obj = object.int, dm = object,write.in=c(1,4))
 ```
 
 The ligand-receptor scores within clusters can be represented through the function `interactionDotPlot()`:
 
-```{r, eval=TRUE, fig.height=7, fig.width=7}
+```{r, eval=FALSE, fig.height=7, fig.width=7}
 interactionDotPlot(obj = object.int, interaction = 4)
 ``` 
 
@@ -246,69 +246,69 @@ object <- dataPrepare(file = data, lower=0.05,upper=0.0155)
 
 We know that this dataset is composed of melanoma cells and their microenvironment, we hence define our markers table using the `markers()` function.  
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 my.markers <- markers(category = c("immune", "tme", "melanoma"))
 head(my.markers)
 ```
 
 Let us perform the clustering. For this example, we set the `method` argument to *"kmeans"* and the *n* argument to 12. We use the markers table created above to assign a celltype to each cluster.
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 object <- cellClustering(obj = object, n = 12, method = "simlr", markers = my.markers, classification = "by cluster")
 ```
 
 We can compare the results with the one obtained through cell annotation:
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 object.b <- cellClassifying(obj = object, markers = my.markers)
 ```
 
 Differential gene expression can be performed to find specific genes expressed in each cluster (than can then be used to define specific ligand-receptor interactions):
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 object <- dgeCluster(obj = object)
 ```
 
 The most variable interactions between cluster can be analysed and plotted through the `mv_interactions()` function: 
-```{r, eval=TRUE, fig.height=7, fig.width=7}
+```{r, eval=FALSE, fig.height=7, fig.width=7}
 mvInteractions(obj = object)
 ```  
 
 It is possible to look at specific genes' coupled expression using the `expression_plot_2()` function.
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 expressionPlot2(obj = object, "AREG", "EGFR")
 ```  
 
 With the function `expression_plot()` it is possible to look at the expression of one gene within each cell.
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 expressionPlot(obj = object, "ANXA1")
 ```  
 
 LR interactions are calculated between the different clusters (interaction type is by default `paracrine`):
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 object.int <- cellSignaling(obj = object)
 ```
 
 And then visualized, eventually specifying pathway(s) to study:
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 pathways <- findPathways("downregulation")
 p <- pathways[2,1]
 visualizeInteractions(obj = object.int, dm = object, show.in = c(3,1), pathway = p)
 ```
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 interactionDotPlot(obj = object.int, dm = object, interaction = 3, pathway = p)
 ```
 
 An intercellular network can also be generated to map the ligand/receptor interactions linked with specific pathway(s) calling the `inter_network()` function:  
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 inter.net <- interNetwork(obj = object.int, dm = object, pathway = p)
 ```
 
 We can be interested in genes participating in pathways with a receptor of interest inside a cluster of interest. Let us say *EGFR* in the second cluster.
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 g <- "EGFR"
 c <- cluster(object)$names[2]
 intra.net <- intraNetwork(dm = object, obj = object.int, goi = g, coi = c, pathway = p)
@@ -321,9 +321,9 @@ At this point the intercellular network have been generated and exported in text
 For this example we use the scRNAseq dataset from `recount3`'s *SRP066963* project. Because the dataset is not a human dataset the species studied must be given upon preparing the data: 
 
 ```{r}
-matrix <- system.file("extdata", "mouse_scRNAseq_dataset.txt", package = "SingleCellSignalR")
-
-data <- matrix
+matrix_path <- system.file("extdata", "mouse_scRNAseq_dataset.txt", package = "SingleCellSignalR")
+data <-  read.csv(matrix_path, sep = "\t")
+print(data)
 
 object <- dataPrepare(file = data, lower=0.05,upper=0.0155, species = "mmusculus")
 ```
@@ -332,23 +332,23 @@ Mouse genes are converted to human genes (initial mouse genes are found in `ncou
 
 We apply clustering to the data and use the `singler` package to annotate them:
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 object <- cellClustering(obj = object, method = "simlr", classification = "singler")
 ```
 
 Differential gene expression can be performed to find specific genes expressed in each cluster (than can then be used to define specific ligand-receptor interactions):
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 object <- dgeCluster(obj = object)
 ```
 
 The most variable interactions between cluster can be analysed and plotted through the `mv_interactions()` function: 
-```{r, eval=TRUE, fig.height=7, fig.width=7}
+```{r, eval=FALSE, fig.height=7, fig.width=7}
 mvInteractions(obj = object)
 ```  
 
 LR interactions are calculated between the different clusters (interaction type is by default `paracrine`):
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 object.int <- cellSignaling(obj = object)
 ```
 
