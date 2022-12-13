@@ -148,10 +148,13 @@ checkDatabaseLastVersion <- function(update=FALSE) {
             ,sep = "/")
             unlink(databaseFilePath)
             file.rename(databaseFilePathCopy,databaseFilePath)
-            cat(cli::cli_alert("Ligand-Receptor database has been be updated.","\n"))
+            cat(cli::cli_alert("Ligand-Receptor database has been updated.","\n"))
 
          }
-         else { cat(cli::cli_alert("Install new version using `createDatabase(onRequest=TRUE)`.","\n"))} 
+         else { 
+            unlink(databaseFilePathCopy)
+            cat(cli::cli_alert("Install new version using `createDatabase(onRequest=TRUE)`.","\n"))
+        } 
     }
 
     DBI::dbDisconnect(SingleCellSignalRCon)

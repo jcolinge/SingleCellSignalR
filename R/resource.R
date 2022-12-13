@@ -26,13 +26,13 @@
 #'    updatePathwaysFromFile(file,"GO-BP")
 #'
 updatePathwaysFromFile <- function(file,
-                        fileType=c("json","gmt"),
+                        fileType=NULL,
                         resourceName=NULL){
 
-        fileType <- match.arg(fileType)
+        #fileType <- match.arg(fileType)
 
-        if (! resourceName %in% c("GO-BP","REACTOME"))
-           stop("GO-BP and REACTOME are the only keywords alllowed.")
+        if (! resourceName %in% c("GO-BP","Reactome"))
+           stop("GO-BP and Reactome are the only keywords alllowed.")
    
         if (! file.exists(file))
            stop("This file doesn't exist.")
@@ -43,15 +43,9 @@ updatePathwaysFromFile <- function(file,
         else if(fileType=="gmt")
            db <- .formatPathwaysFromGmt(file=file,
                 resourceName=resourceName)
-        else {  stop("File format is not defined correctly.")}
+        else {  stop("File format accepted are `json` or `gmt` only.")}
 
-        # Due to the fact React and Go are organized differently
-        if(resourceName=="REACTOME"){
-            names(db)<-c('Reactome name','Gene name','Reactome ID')
-        }
-
-        if(resourceName=="GO-BP")
-            names(db)<-c('GO ID','Gene name','GO name')
+        
 
 return (db)
 
@@ -70,7 +64,12 @@ return (db)
 .formatPathwaysFromJson <- function(file,
     resourceName=NULL) {
     
-    data <- jsonlite::read_json(file,simplifyVector = TRUE)
+    data <- jsonlite::read_json(file,simplifyVector=TRUE)
+
+    if (!all(c("exactSource","geneSymbols") %in% names(data[[1]]))){
+          cat(cli::cli_alert_danger("Json format is invalid.","\n"))
+          stop("Json must follow the standard from The Molecular Signatures Database (MSigDB).")
+    }
 
     db <-foreach::foreach(indexPathway=1:length(data), 
                     .combine = 'rbind') %dopar% { 
@@ -78,6 +77,14 @@ return (db)
                       geneName=unlist(data[[indexPathway]]$geneSymbols)[1:length(unlist(data[[indexPathway]]$geneSymbols))],
                       pathwayName= rep(names(data)[[indexPathway]],length(names(data)[[indexPathway]])))
     }
+
+        # Due to the fact React and Go are organized differently
+        if(resourceName=="Reactome"){
+            names(db)<-c('Reactome ID','Gene name','Reactome name')
+        }
+
+        if(resourceName=="GO-BP")
+            names(db)<-c('GO ID','Gene name','GO name')
 
 return (db)
 
@@ -116,7 +123,8 @@ return (db)
         read1 <-scan(file,what=list("",""),sep="\t", 
             quote=NULL, fill=TRUE, flush=TRUE,multi.line=FALSE)
 
-        read1 <- setNames(read1, c("ID","Description"))
+        read1 <- setNames(read1, c("Description","ID"))
+        read1 <- read1[c("ID","Description")]
 
         geneset.ids<-read1[1][[1]]
         geneset.descriptions<-read1[2][[1]]
@@ -131,9 +139,9 @@ return (db)
         # Compute indice of pathway
         ii<-1
         for(i in 1:nn){
-             while((read2[ii]!=geneset.descriptions[i]) | (read2[ii+1]!=geneset.ids[i]) ){
+            while((read2[ii]!=geneset.descriptions[i]) | (read2[ii+1]!=geneset.ids[i]) ){
                ii=ii+1
-            }
+             }
          ox[i]=ii   
          ii=ii+1
         }
@@ -165,6 +173,16 @@ return (db)
                       c=rep(data$geneset.descriptions[[i]],length(data$genesets[[i]])))
         }
 
+        # Due to the fact React and Go are organized differently
+        if(resourceName=="Reactome"){
+            names(dataframeFromGmt)<-c('Reactome name','Gene name','Reactome ID')
+            dataframeFromGmt <- dataframeFromGmt[c('Reactome ID','Gene name','Reactome name')]
+        }
+
+        if(resourceName=="GO-BP"){
+            names(dataframeFromGmt)<-c('GO name','Gene name','GO ID')
+            dataframeFromGmt <- dataframeFromGmt[c('GO ID','Gene name','GO name')]
+        }  
 
 return(dataframeFromGmt)
 
@@ -194,12 +212,13 @@ createResources <- function(onRequest=TRUE,verbose=FALSE) {
 
    cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
    resourcesCacheDir <- paste(cacheDir,"resources",sep="/")
-     
+
    # Do it once, onLoad
    if(!dir.exists(resourcesCacheDir) | onRequest) {
         .addCache(url=Sys.getenv("SingleCellSignalR_GO_URL"),cacheDir=resourcesCacheDir,resourceName="GO-BP",verbose=verbose)
         .addCache(url=Sys.getenv("SingleCellSignalR_Reactome_URL"),cacheDir=resourcesCacheDir,resourceName="Reactome",verbose=verbose)
         .addCache(url=Sys.getenv("SingleCellSignalR_PwC_URL"),cacheDir=resourcesCacheDir,resourceName="PwC",verbose=verbose)
+        cat("\n")
 
     }
 
@@ -226,12 +245,24 @@ return(invisible(NULL))
 #' @keywords internal
 .addCache <- function(url,cacheDir,resourceName,verbose=FALSE) {
 
+        if(!dir.exists(cacheDir)) 
+            dir.create(cacheDir)
+       
         bfc <- BiocFileCache::BiocFileCache(cacheDir,ask = FALSE)
    
+        #safeguard
+        cacheHits <- bfcquery(bfc,query=resourceName,field="rname")
+        if(nrow(cacheHits) >= 1) {
+         cat(cli::cli_alert_danger("Multiple cache results found.","\n"))
+         stop("Please clear your cache with `cacheClear()` before running `createResources`!")
+        }
+
         config <- httr::set_config(config(ssl_verifypeer = 0L,ssl_verifyhost = 0L))
             
         # if fname="exact" remove the unique identifier
         BiocFileCache::bfcadd(bfc,rname=resourceName,config=config,fpath=url)
+
+        cli::cli_alert_info("{.val {resourceName}} added to cache with success.")
 
         if(verbose){
             print(BiocFileCache::bfccache(bfc))
@@ -258,15 +289,38 @@ return(invisible(NULL))
 getResource <- function(resourceName=NULL) {
 
     if (!resourceName %in% c("GO-BP","Reactome","PwC")){
-        cat(cli::cli_alert_danger("GO-BP and Reactome are the only keywords alllowed.","\n"))
+        cat(cli::cli_alert_danger(".val {GO-BP, Reactome & PwC} are the only keywords alllowed.","\n"))
         stop() 
     }
     cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
     resourcesCacheDir <- paste(cacheDir,"resources",sep="/")
+    
+    # safeguard
+    if(!dir.exists(resourcesCacheDir)) {
+        cat(cli::cli_alert_danger("Resources repository doesn't exist.","\n"))
+        stop()
+    } 
 
     bfc <- BiocFileCache::BiocFileCache(resourcesCacheDir,ask = FALSE)
 
     dataframe <- .readFromCache(bfc=bfc,resourceName=resourceName)
+
+    # Due to the fact React and Go are organized differently
+    if(resourceName=="Reactome"){
+         if(!all(c('Reactome ID','Gene name','Reactome name') %in% colnames(dataframe))){
+           cat(cli::cli_alert_danger("Colnames of raw data are not well defined.","\n"))
+           stop()
+         }          
+        dataframe <- dataframe[,c('Reactome name','Gene name','Reactome ID')]
+    }
+
+    if(resourceName=="GO-BP"){
+          if(!all(c('GO ID','Gene name','GO name') %in% colnames(dataframe))){
+           cat(cli::cli_alert_danger("Colnames of raw data are not well defined.","\n"))
+           stop()
+         }  
+         dataframe <- dataframe[,c('GO ID','Gene name','GO name')]
+    }
 
     return(dataframe)
 }
@@ -290,10 +344,11 @@ getResource <- function(resourceName=NULL) {
     }
     else if(nrow(cacheHits) > 1) {
          cat(cli::cli_alert_danger("Multiple cache results found.","\n"))
-         stop("Please clear your cache by running cacheClear()!")
+         stop("Please, clear your cache by running cacheClear()!")
     } else {
         rid <- cacheHits$rid
-        result <- readRDS( bfc[[ rid ]] )
+        result <- readRDS(bfc[[rid ]])
+
         return(result)
     }
 }
@@ -363,6 +418,12 @@ cacheClear <- function() {
     cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
     resourcesCacheDir <- paste(cacheDir,"resources",sep="/")
 
+    # safeguard
+    if(!dir.exists(resourcesCacheDir)) {
+        message("Directory is already clean.","\n")
+        return(invisible(NULL))
+    } 
+
     bfc <- BiocFileCache::BiocFileCache(resourcesCacheDir, ask = FALSE)
     BiocFileCache::removebfc(bfc, ask = FALSE)
 
@@ -418,3 +479,52 @@ cacheInfo <- function() {
     return(invisible(resourcesCacheDir))
 }
 
+
+#' Check remote files ressources are changed.
+#'
+#' Check to see if some ressources has
+#' has been updated.
+#'
+#' @import BiocFileCache httr cli
+#' @return NULL
+#' have been updated. See Updates.txt online.
+#' @export
+#' @examples
+#  if(FALSE)
+#   checkCacheLastVersion()
+checkCacheLastVersion <- function() {
+
+    cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
+    resourcesCacheDir <- paste(cacheDir,"resources",sep="/")
+
+   # safeguard
+    if(!dir.exists(resourcesCacheDir)) {
+        dir.create(resourcesCacheDir)
+    } 
+
+    files <-  list.files(resourcesCacheDir)
+
+    if(length(files)==0) {
+        message("SingleCellSignalR cache uninitialized.\n", 
+                "- Location: ", resourcesCacheDir, "\n",
+                "- No. of files: ", length(files), "\n")
+        return(invisible(NULL))
+    }
+
+    config <- httr::set_config(config(ssl_verifypeer = 0L,ssl_verifyhost = 0L))
+    bfc <- BiocFileCache::BiocFileCache(resourcesCacheDir, ask = FALSE)
+         
+    if(!all(BiocFileCache::bfcneedsupdate(bfc))){
+        message("Remote SingleCellSignalR have been updated.\n")    
+        cat(cli::cli_alert_info("Please clear your cache with `cacheClear()` to update locally!","\n"))
+        return(invisible(NULL))
+    }
+
+    else {
+       cli::cli_alert_info("Remote SingleCellSignalR ressources have still not been updated.\n")
+
+    }
+
+    return(invisible(NULL))
+
+}

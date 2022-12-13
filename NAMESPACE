@@ -3,6 +3,7 @@
 export(checkDatabaseLastVersion)
 export(cacheClear)
 export(cacheInfo)
+export(checkCacheLastVersion)
 export(checkDatabaseLastVersion)
 export(createDatabase)
 export(createResources)

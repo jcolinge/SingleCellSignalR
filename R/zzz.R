@@ -15,7 +15,7 @@
     ##   Ressource Cache Files   ###  
     ################################
 
-    urlDatabase <- "https://partage-dev.montp.inserm.fr:9192/CBSB/database/SignalR/SingleCellSignalR.db"
+    urlDatabase <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/database/SingleCellSignalR.db"
     urlGo       <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/resources/gobp.rds"
     urlReactome <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/resources/reactome.rds"
     urlPwC <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/resources/PwC_ReactomeKEGG.rds"

@@ -12,7 +12,7 @@ SingleCellSignalR is used to infer ligand-receptor (L-R) interactions from singl
 
 ## Installation
 
-``` R
+``` R 
 # Installation can go via GitHub:
 # install.packages("devtools")
 devtools::install_github("jcolinge/SingleCellSignalR",build_vignettes = TRUE)

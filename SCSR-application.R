@@ -5,64 +5,80 @@ library(stringr)
 library(foreach)
 library(doParallel)
 
-# Create 4 dirs
+# Create 4 dirs 
 baseDir <- '/data/villemin'
 package <- '/data2/villemin/SingleCellSignalR/SingleCellSignalR'
 Output  <- '/data2/villemin/SingleCellSignalR/Output'
 Input   <- '/data2/villemin/SingleCellSignalR/Input'
 
 devtools::install(glue("{baseDir}{package}"))
+
+
 library(SingleCellSignalR)
 #suppressPackageStartupMessages(library(SingleCellSignalR))
 
-cacheInfo()
-cacheClear()
-cacheInfo()
-createResources(verbose=FALSE)
-cacheInfo()
+# User can set a different repository for cache
+#Sys.setenv("SingleCellSignalR_CACHEDIR"
+# = "/data/villemin/data2/villemin/SingleCellSignalR/Input")
 
-print("reactome")
+# 1 ##############################
+
+
+#cacheClear()
+
+#createResources()
+
+
+#cacheInfo()
+
+#checkCacheLastVersion()
+
+# 2 ##############################
+
 reactome <-  getResource(resourceName="Reactome")
-
-print("gobp")
 GObp     <-  getResource(resourceName="GO-BP")
+pwc      <-  getResource(resourceName="PwC")
 
-print("pwc")
-pwc     <-  getResource(resourceName="PwC")
+head(pwc)
 
-stop()
-#data <- updatePathwaysFromFile(file=glue("{baseDir}{Input}/c2.cp.reactome.v2022.1.Hs.json"),
-						#  pathwaySource="REACTOME")
-#head(data)
-#tail(data)
+dataReactomeJson <- updatePathwaysFromFile(
+			file=glue("{baseDir}{Input}/c2.cp.reactome.v2022.1.Hs.json"),
+						  resourceName="Reactome",fileType="json")
 
-#data(example_dataset, package = "SingleCellSignalR")
-# data <- as.data.frame(data)
-#data <- example_dataset
-#object <- dataPrepare(file = data)
-#object <- cellClustering(obj = object, n = 10, method = "kmeans")
+dataReactomeGmt <- updatePathwaysFromFile(
+				file=glue("{baseDir}{Input}/ReactomePathways.gmt"),
+						  resourceName="Reactome",fileType="gmt")
 
+head(dataReactomeGmt)
 
 print("CreateDatabase on Request")
 #createDatabase()
 
-print("checkLastVersion FALSE")
-#checkDatabaseLastVersion(update=FALSE)
+print("checkLastVersion")
+checkDatabaseLastVersion(update=FALSE)
 
-print("checkLastVersion TRUE")
+stop()
+print("checkLastVersion and update if a new one exists.")
 #checkDatabaseLastVersion(update=TRUE)
 
-print("getInteractions 2")
-
+print("getInteractions")
 interactions <- getInteractions()
 head(interactions)
 dim(interactions)
 
-print("getInteractions 1")
-
+print("getInteractions for older release v1.")
 interactions <- getInteractions(idRelease=1)
 head(interactions)
 dim(interactions)
+
+print("getComplexes")
+complexes <- getComplexes()
+head(complexes)
+
+stop()
+##############################
+###   Vrac                 ###
+##############################
 
 print("intersect - 20  ")
 intersect(interactions$Ligand,interactions$Receptor)
@@ -72,14 +88,11 @@ intersect(interactions$Ligand,interactions$Receptor)
 # "NECTIN1" "CEACAM8"     "CLEC2B"   
 # "CD36"  "CD48"  "CD80" "CD177" "CD47" "CD22" "CD1D" 
 
-#getInteractions(idRelease=65)
-print("getComplexes")
-
-complexes <- getComplexes()
-head(complexes)
 dim(complexes)
 dim(complexes[complexes$type=="L",])
 dim(complexes[complexes$type=="R",])
+
+
 
 write.table(interactions ,file = glue("{baseDir}{Output}/interactions.csv"), col.names= TRUE,row.names =  FALSE, quote = F,sep = "\t")
 write.table(complexes ,file = glue("{baseDir}{Output}/complexes.csv"), col.names= TRUE,row.names =  FALSE, quote = F,sep = "\t")
