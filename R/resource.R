@@ -193,7 +193,7 @@ return(dataframeFromGmt)
 createResources <- function(onRequest=TRUE,verbose=FALSE) {
 
    cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
-   resourceName <- paste(cacheDir,"resources",sep="/")
+   resourcesCacheDir <- paste(cacheDir,"resources",sep="/")
      
    # Do it once, onLoad
    if(!dir.exists(resourcesCacheDir) | onRequest) {
