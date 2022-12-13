@@ -18,17 +18,17 @@ library(SingleCellSignalR)
 cacheInfo()
 cacheClear()
 cacheInfo()
-createRessources(verbose=FALSE)
+createResources(verbose=FALSE)
 cacheInfo()
 
 print("reactome")
-reactome <-  getRessource(ressource="Reactome")
+reactome <-  getResource(ressource="Reactome")
 
 print("gobp")
-GObp     <-  getRessource(ressource="GO-BP")
+GObp     <-  getResource(ressource="GO-BP")
 
 print("pwc")
-pwc     <-  getRessource(ressource="PwC")
+pwc     <-  getResource(ressource="PwC")
 
 stop()
 #data <- updatePathwaysFromFile(file=glue("{baseDir}{Input}/c2.cp.reactome.v2022.1.Hs.json"),

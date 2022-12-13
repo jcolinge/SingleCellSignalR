@@ -14,7 +14,7 @@
 getComplexes <- function(idRelease=NULL) { 
 
     cacheDir <- Sys.getenv("SingleCellSignalR_CACHEDIR")
-    url      <-  Sys.getenv("SingleCellSignalR_URL")
+    url      <-  Sys.getenv("SingleCellSignalR_DB_URL")
  
     databaseFilePath <- paste(cacheDir,basename(url),sep = "/")
 
@@ -73,7 +73,7 @@ getComplexes <- function(idRelease=NULL) {
 getInteractions <- function(idRelease=NULL) { 
 
     cacheDir <- Sys.getenv("SingleCellSignalR_CACHEDIR")
-    url      <-  Sys.getenv("SingleCellSignalR_URL")
+    url      <-  Sys.getenv("SingleCellSignalR_DB_URL")
  
     databaseFilePath <- paste(cacheDir,basename(url),sep = "/")
 

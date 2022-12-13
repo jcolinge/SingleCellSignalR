@@ -15,7 +15,7 @@
 #'
 #' @param file    Path to file.
 #' @param fileType    Default is Json.
-#' @param ressourceName    Two options "GO-BP" or "REACTOME".
+#' @param resourceName    Two options "GO-BP" or "REACTOME".
 #'
 #' @return dataframe with ID, Name and Gene
 #'
@@ -27,11 +27,11 @@
 #'
 updatePathwaysFromFile <- function(file,
                         fileType=c("json","gmt"),
-                        ressourceName=NULL){
+                        resourceName=NULL){
 
         fileType <- match.arg(fileType)
 
-        if (! ressourceName %in% c("GO-BP","REACTOME"))
+        if (! resourceName %in% c("GO-BP","REACTOME"))
            stop("GO-BP and REACTOME are the only keywords alllowed.")
    
         if (! file.exists(file))
@@ -39,18 +39,18 @@ updatePathwaysFromFile <- function(file,
         
         if(fileType=="json")
            db <- .formatPathwaysFromJson(file=file,
-                ressourceName=ressourceName)
+                resourceName=resourceName)
         else if(fileType=="gmt")
            db <- .formatPathwaysFromGmt(file=file,
-                ressourceName=ressourceName)
+                resourceName=resourceName)
         else {  stop("File format is not defined correctly.")}
 
         # Due to the fact React and Go are organized differently
-        if(ressourceName=="REACTOME"){
+        if(resourceName=="REACTOME"){
             names(db)<-c('Reactome name','Gene name','Reactome ID')
         }
 
-        if(ressourceName=="GO-BP")
+        if(resourceName=="GO-BP")
             names(db)<-c('GO ID','Gene name','GO name')
 
 return (db)
@@ -60,7 +60,7 @@ return (db)
 #' Format dataframe according to json input
 #'
 #' @param file    Path to file.
-#' @param ressourceName    Two options "GO-BP" or "REACTOME".
+#' @param resourceName    Two options "GO-BP" or "REACTOME".
 #'
 #' @return Dataframe with pathwayID, geneName and pathwayName
 #'
@@ -68,7 +68,7 @@ return (db)
 #' @import doParallel
 #' @import jsonlite
 .formatPathwaysFromJson <- function(file,
-    ressourceName=NULL) {
+    resourceName=NULL) {
     
     data <- jsonlite::read_json(file,simplifyVector = TRUE)
 
@@ -104,14 +104,14 @@ return (db)
 #' from the gsa R package.
 #'
 #' @param file    Path to GMT file
-#' @param ressourceName   Two options "GO-BP" or "REACTOME"
+#' @param resourceName   Two options "GO-BP" or "REACTOME"
 #'
 #' @return Dataframe with pathwayID, geneName and pathwayName
 #'
 #' @importFrom foreach %do% %dopar%
 #' @import doParallel
 .formatPathwaysFromGmt<- function(file,
-    ressourceName=NULL){
+    resourceName=NULL){
 
         read1 <-scan(file,what=list("",""),sep="\t", 
             quote=NULL, fill=TRUE, flush=TRUE,multi.line=FALSE)
@@ -189,19 +189,22 @@ return(dataframeFromGmt)
 #' @export 
 #' @examples
 #' if(FALSE)
-#'  createRessources() 
-createRessources <- function(onRequest=TRUE,verbose=FALSE) {
+#'  createResources() 
+createResources <- function(onRequest=TRUE,verbose=FALSE) {
 
    cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
-   ressourcesCacheDir <- paste(cacheDir,"ressources",sep="/")
+   resourceName <- paste(cacheDir,"ressources",sep="/")
      
    # Do it once, onLoad
-   if(!dir.exists(ressourcesCacheDir) | onRequest) {
-        .addCache(url=Sys.getenv("SingleCellSignalR_GO_URL"),cacheDir=ressourcesCacheDir,ressourceName="GO-BP",verbose=verbose)
-        .addCache(url=Sys.getenv("SingleCellSignalR_Reactome_URL"),cacheDir=ressourcesCacheDir,ressourceName="Reactome",verbose=verbose)
-        .addCache(url=Sys.getenv("SingleCellSignalR_PwC_URL"),cacheDir=ressourcesCacheDir,ressourceName="PwC",verbose=verbose)
+   if(!dir.exists(resourcesCacheDir) | onRequest) {
+        .addCache(url=Sys.getenv("SingleCellSignalR_GO_URL"),cacheDir=resourcesCacheDir,resourceName="GO-BP",verbose=verbose)
+        .addCache(url=Sys.getenv("SingleCellSignalR_Reactome_URL"),cacheDir=resourcesCacheDir,resourceName="Reactome",verbose=verbose)
+        .addCache(url=Sys.getenv("SingleCellSignalR_PwC_URL"),cacheDir=resourcesCacheDir,resourceName="PwC",verbose=verbose)
 
     }
+
+return(invisible(NULL))
+
 }
 
 
@@ -214,27 +217,30 @@ createRessources <- function(onRequest=TRUE,verbose=FALSE) {
 #' not relying on BiocFileCache instance.
 #'
 #' @param url    Path to file on the web.
-#' @param ressourceName   Ressource name.
+#' @param resourceName   Ressource name.
 #' @param cacheDir   Absolute path to cache directory.
 #' @param verbose   Default FALSE
 
 #' @import BiocFileCache
 #' @import httr
 #' @keywords internal
-.addCache <- function(url,cacheDir,ressourceName,verbose=FALSE) {
+.addCache <- function(url,cacheDir,resourceName,verbose=FALSE) {
 
         bfc <- BiocFileCache::BiocFileCache(cacheDir,ask = FALSE)
    
         config <- httr::set_config(config(ssl_verifypeer = 0L,ssl_verifyhost = 0L))
             
         # if fname="exact" remove the unique identifier
-        BiocFileCache::bfcadd(bfc,rname=ressourceName,config=config,fpath=url)
+        BiocFileCache::bfcadd(bfc,rname=resourceName,config=config,fpath=url)
 
         if(verbose){
             print(BiocFileCache::bfccache(bfc))
             print(length(bfc)) 
             print(BiocFileCache::bfcinfo(bfc))
         }
+
+return(invisible(NULL))
+
 }
 
 #' Get ressource from the cache.
@@ -243,24 +249,24 @@ createRessources <- function(onRequest=TRUE,verbose=FALSE) {
 #' from \url{https://www.pathwaycommons.org/})
 #' stored in the cache.
 #'
-#' @param ressourceName   Ressource name.
+#' @param resourceName   Ressource name.
 #'
 #' @importFrom cli cli_alert_danger
 #' @export
 #' @examples
 #' reactome <-  getRessource(ressource="Reactome")
-getRessource <- function(ressourceName=NULL) {
+getRessource <- function(resourceName=NULL) {
 
-    if (!ressourceName %in% c("GO-BP","Reactome","PwC")){
+    if (!resourceName %in% c("GO-BP","Reactome","PwC")){
         cat(cli::cli_alert_danger("GO-BP and Reactome are the only keywords alllowed.","\n"))
         stop() 
     }
     cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
-    ressourcesCacheDir <- paste(cacheDir,"ressources",sep="/")
+    resourcesCacheDir <- paste(cacheDir,"ressources",sep="/")
 
-    bfc <- BiocFileCache::BiocFileCache(ressourcesCacheDir,ask = FALSE)
+    bfc <- BiocFileCache::BiocFileCache(resourcesCacheDir,ask = FALSE)
 
-    dataframe <- .readFromCache(bfc=bfc,ressourceName=ressourceName)
+    dataframe <- .readFromCache(bfc=bfc,resourceName=resourceName)
 
     return(dataframe)
 }
@@ -273,11 +279,11 @@ getRessource <- function(ressourceName=NULL) {
 #'
 #' @param bfc Object of class BiocFileCache, created by a call to 
 #' BiocFileCache::BiocFileCache()
-#' @param ressourceName keyword associated to a specific ressourceName
+#' @param resourceName keyword associated to a specific resourceName
 #' @keywords internal
-.readFromCache <- function(bfc,ressourceName) {
+.readFromCache <- function(bfc,resourceName) {
 
-    cacheHits <- bfcquery(bfc,query=ressourceName,field="rname")
+    cacheHits <- bfcquery(bfc,query=resourceName,field="rname")
     if(nrow(cacheHits) == 0) {
         cat(cli::cli_alert_danger("No cache result found.","\n"))
         stop() 
@@ -300,14 +306,14 @@ getRessource <- function(ressourceName=NULL) {
 #'
 #' @param bfc Object of class BiocFileCache, created by a call to 
 #' BiocFileCache::BiocFileCache()
-#' @param ressourceName keyword associated to a specific ressource name
+#' @param resourceName keyword associated to a specific ressource name
 #' 
 #' @keywords internal
 #' @return logical This function returns TRUE if a record with 
 #' the requested keyword already  exists in the file cache,
 #'  otherwise returns FALSE.
-.checkInCache <- function(bfc,ressourceName) {
-    cacheHits <- bfcquery(bfc, query = ressourceName, field = "rname")
+.checkInCache <- function(bfc,resourceName) {
+    cacheHits <- bfcquery(bfc, query = resourceName, field = "rname")
     as.logical(nrow(cacheHits))
 }
 
@@ -320,12 +326,12 @@ getRessource <- function(ressourceName=NULL) {
 #'
 #' @param bfc Object of class BiocFileCache, created by a call to 
 #' BiocFileCache::BiocFileCache()
-#' @param ressourceName keyword associated to a specific ressource name.
+#' @param resourceName keyword associated to a specific ressource name.
 #' @importFrom cli cli_alert_danger
 #' @importFrom BiocFileCache bfcremove
 #' @keywords internal
-.checkValidCache <- function(bfc, ressourceName) {
-    cacheHits <- bfcquery(bfc,query=ressourceName,field="rname")
+.checkValidCache <- function(bfc, resourceName) {
+    cacheHits <- bfcquery(bfc,query=resourceName,field="rname")
     if(nrow(cacheHits) == 0) {
        cat(cli::cli_alert_danger("No cache result found.","\n"))
        stop() 
@@ -355,15 +361,17 @@ getRessource <- function(ressourceName=NULL) {
 cacheClear <- function() {
 
     cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
-    ressourcesCacheDir <- paste(cacheDir,"ressources",sep="/")
+    resourcesCacheDir <- paste(cacheDir,"ressources",sep="/")
 
-    bfc <- BiocFileCache::BiocFileCache(ressourcesCacheDir, ask = FALSE)
+    bfc <- BiocFileCache::BiocFileCache(resourcesCacheDir, ask = FALSE)
     BiocFileCache::removebfc(bfc, ask = FALSE)
 
-    #dir.create(ressourcesCacheDir)
+    #dir.create(resourcesCacheDir)
     message("SingleCellSignalR cache has been deleted.\n", 
-                "- Location: ", ressourcesCacheDir, "\n",
+                "- Location: ", resourcesCacheDir, "\n",
                 "- No. of files: 0", "\n")
+
+    return(invisible(NULL))
 
 }
 
@@ -380,33 +388,33 @@ cacheClear <- function() {
 cacheInfo <- function() {
 
     cacheDir <-  Sys.getenv(x = "SingleCellSignalR_CACHEDIR")
-    ressourcesCacheDir <- paste(cacheDir,"ressources",sep="/")
+    resourcesCacheDir <- paste(cacheDir,"ressources",sep="/")
     
     # safeguard
-    if(!dir.exists(ressourcesCacheDir)) {
-        dir.create(ressourcesCacheDir)
+    if(!dir.exists(resourcesCacheDir)) {
+        dir.create(resourcesCacheDir)
     } 
 
-    files <-  list.files(ressourcesCacheDir)
+    files <-  list.files(resourcesCacheDir)
 
     if(length(files)==0) {
         message("SingleCellSignalR cache uninitialized.\n", 
-                "- Location: ", ressourcesCacheDir, "\n",
+                "- Location: ", resourcesCacheDir, "\n",
                 "- No. of files: ", length(files), "\n")
 
     } else {
         
-        bfc <- BiocFileCache::BiocFileCache(ressourcesCacheDir, ask = FALSE)
+        bfc <- BiocFileCache::BiocFileCache(resourcesCacheDir, ask = FALSE)
         files <- bfcinfo(bfc)$rpath
         total_size <- sum(file.size(files))
         size_obj <- structure(total_size, class = "object_size")
     
         message("SingleCellSignalR cache: \n", 
-                "- Location: ", ressourcesCacheDir, "\n",
+                "- Location: ", resourcesCacheDir, "\n",
                 "- No. of files: ", length(files), "\n",
                 "- Total size: ", format(size_obj, units = "auto"), "\n")
     }
 
-    return(invisible(ressourcesCacheDir))
+    return(invisible(resourcesCacheDir))
 }
 

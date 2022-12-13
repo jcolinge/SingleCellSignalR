@@ -16,16 +16,16 @@
     ################################
 
     urlDatabase <- "https://partage-dev.montp.inserm.fr:9192/CBSB/database/SignalR/SingleCellSignalR.db"
-    urlGo       <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/ressources/gobp.rds"
-    urlReactome <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/ressources/reactome.rds"
-    urlPwC <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/ressources/PwC_ReactomeKEGG.rds"
+    urlGo       <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/resources/gobp.rds"
+    urlReactome <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/resources/reactome.rds"
+    urlPwC <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/resources/PwC_ReactomeKEGG.rds"
 
     Sys.setenv("SingleCellSignalR_DB_URL"= urlDatabase)
     Sys.setenv("SingleCellSignalR_GO_URL" = urlGo)
     Sys.setenv("SingleCellSignalR_Reactome_URL" = urlReactome)
     Sys.setenv("SingleCellSignalR_PwC_URL" = urlPwC)
 
-    createRessources(onRequest=FALSE)
+    createResources(onRequest=FALSE)
 
 }
 
