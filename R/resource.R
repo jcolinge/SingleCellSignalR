@@ -302,11 +302,11 @@ getResource <- function(resourceName=NULL) {
 #'
 #' Check if the cache record exists or not, by passing
 #' to the function an associated keyword
-#' associated to the ressource we are looking for.
+#' associated to the resource we are looking for.
 #'
 #' @param bfc Object of class BiocFileCache, created by a call to 
 #' BiocFileCache::BiocFileCache()
-#' @param resourceName keyword associated to a specific ressource name
+#' @param resourceName keyword associated to a specific resource name
 #' 
 #' @keywords internal
 #' @return logical This function returns TRUE if a record with 
@@ -326,7 +326,7 @@ getResource <- function(resourceName=NULL) {
 #'
 #' @param bfc Object of class BiocFileCache, created by a call to 
 #' BiocFileCache::BiocFileCache()
-#' @param resourceName keyword associated to a specific ressource name.
+#' @param resourceName keyword associated to a specific resource name.
 #' @importFrom cli cli_alert_danger
 #' @importFrom BiocFileCache bfcremove
 #' @keywords internal

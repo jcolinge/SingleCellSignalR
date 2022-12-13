@@ -22,13 +22,13 @@ createResources(verbose=FALSE)
 cacheInfo()
 
 print("reactome")
-reactome <-  getResource(ressource="Reactome")
+reactome <-  getResource(resourceName="Reactome")
 
 print("gobp")
-GObp     <-  getResource(ressource="GO-BP")
+GObp     <-  getResource(resourceName="GO-BP")
 
 print("pwc")
-pwc     <-  getResource(ressource="PwC")
+pwc     <-  getResource(resourceName="PwC")
 
 stop()
 #data <- updatePathwaysFromFile(file=glue("{baseDir}{Input}/c2.cp.reactome.v2022.1.Hs.json"),
