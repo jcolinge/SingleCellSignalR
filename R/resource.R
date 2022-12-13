@@ -254,8 +254,8 @@ return(invisible(NULL))
 #' @importFrom cli cli_alert_danger
 #' @export
 #' @examples
-#' reactome <-  getRessource(ressource="Reactome")
-getRessource <- function(resourceName=NULL) {
+#' reactome <-  getResource(resourceName="Reactome")
+getResource <- function(resourceName=NULL) {
 
     if (!resourceName %in% c("GO-BP","Reactome","PwC")){
         cat(cli::cli_alert_danger("GO-BP and Reactome are the only keywords alllowed.","\n"))
