@@ -15,10 +15,10 @@
     ##   Ressource Cache Files   ###  
     ################################
 
-    urlDatabase <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/SingleCellSignalR.db"
-    urlGo       <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/gobp.rds"
-    urlReactome <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/reactome.rds"
-    urlPwC <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/PwC_ReactomeKEGG.rds"
+    urlDatabase <- "https://partage-dev.montp.inserm.fr:9192/CBSB/database/SignalR/SingleCellSignalR.db"
+    urlGo       <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/ressources/gobp.rds"
+    urlReactome <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/ressources/reactome.rds"
+    urlPwC <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/ressources/PwC_ReactomeKEGG.rds"
 
     Sys.setenv("SingleCellSignalR_DB_URL"= urlDatabase)
     Sys.setenv("SingleCellSignalR_GO_URL" = urlGo)
