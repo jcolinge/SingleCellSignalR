@@ -173,9 +173,9 @@ return(dataframeFromGmt)
  
 
 
-#' Creache all ressources.
+#' Creache all resources.
 #'
-#' Create cache for all ressources (pathways, or PWC network)
+#' Create cache for all resources (pathways, or PWC network)
 #' downloaded from the web when library is first loaded.
 #' This part is handled with BiocFileCache.
 #' Otherwise datatabase, is handled by another process
@@ -193,7 +193,7 @@ return(dataframeFromGmt)
 createResources <- function(onRequest=TRUE,verbose=FALSE) {
 
    cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
-   resourceName <- paste(cacheDir,"ressources",sep="/")
+   resourceName <- paste(cacheDir,"resources",sep="/")
      
    # Do it once, onLoad
    if(!dir.exists(resourcesCacheDir) | onRequest) {
@@ -208,9 +208,9 @@ return(invisible(NULL))
 }
 
 
-#' Add cache for ressources.
+#' Add cache for resources.
 #'
-#' Add cache for ressources (pathways, or PWC network)
+#' Add cache for resources (pathways, or PWC network)
 #' downloaded from the web.
 #' This part is handled with BiocFileCache.
 #' Otherwise datatabase, is handled by another process
@@ -245,7 +245,7 @@ return(invisible(NULL))
 
 #' Get ressource from the cache.
 #'
-#' Get  ressources (pathways, or PathwayCommons network 
+#' Get  resources (pathways, or PathwayCommons network 
 #' from \url{https://www.pathwaycommons.org/})
 #' stored in the cache.
 #'
@@ -262,7 +262,7 @@ getRessource <- function(resourceName=NULL) {
         stop() 
     }
     cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
-    resourcesCacheDir <- paste(cacheDir,"ressources",sep="/")
+    resourcesCacheDir <- paste(cacheDir,"resources",sep="/")
 
     bfc <- BiocFileCache::BiocFileCache(resourcesCacheDir,ask = FALSE)
 
@@ -273,7 +273,7 @@ getRessource <- function(resourceName=NULL) {
 
 #' Read from the cache.
 #'
-#' Access  ressources (pathways, or PathwayCommons network 
+#' Access  resources (pathways, or PathwayCommons network 
 #' from \url{https://www.pathwaycommons.org/})
 #' stored in the cache.
 #'
@@ -361,7 +361,7 @@ getRessource <- function(resourceName=NULL) {
 cacheClear <- function() {
 
     cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
-    resourcesCacheDir <- paste(cacheDir,"ressources",sep="/")
+    resourcesCacheDir <- paste(cacheDir,"resources",sep="/")
 
     bfc <- BiocFileCache::BiocFileCache(resourcesCacheDir, ask = FALSE)
     BiocFileCache::removebfc(bfc, ask = FALSE)
@@ -388,7 +388,7 @@ cacheClear <- function() {
 cacheInfo <- function() {
 
     cacheDir <-  Sys.getenv(x = "SingleCellSignalR_CACHEDIR")
-    resourcesCacheDir <- paste(cacheDir,"ressources",sep="/")
+    resourcesCacheDir <- paste(cacheDir,"resources",sep="/")
     
     # safeguard
     if(!dir.exists(resourcesCacheDir)) {
