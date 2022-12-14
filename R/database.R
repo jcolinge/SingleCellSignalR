@@ -5,6 +5,7 @@
 #' @param onRequest logical True if you force
 #' download again. This will overwrite 
 #' pre-existing database. Default is True.
+#' @param verbose Logical TRUE/FALSE
 #'
 #' @import httr
 #' @importFrom cli col_cyan
@@ -12,17 +13,18 @@
 #' @examples
 #' print("createDatabase")
 #' createDatabase()
-createDatabase <- function(onRequest=TRUE){
+createDatabase <- function(onRequest=TRUE,verbose=FALSE){
 
-    #Default directory
+    #Default directory 
     cacheDir <- Sys.getenv("SingleCellSignalR_CACHEDIR")
- 
-    if (!dir.exists(cacheDir))  
-        dir.create(cacheDir)        
-       
+    databaseCacheDir <- paste(cacheDir,"database",sep="/")
+    
+    if(!dir.exists(databaseCacheDir))
+        dir.create(databaseCacheDir,recursive = TRUE)
+
     url <-  Sys.getenv("SingleCellSignalR_DB_URL")
  
-    databaseFilePath <- paste(cacheDir
+    databaseFilePath <- paste(databaseCacheDir
         ,basename(url)
         ,sep = "/")
 
@@ -31,15 +33,14 @@ createDatabase <- function(onRequest=TRUE){
         isDownloaded <- .downloadDatabase(url,databaseFilePath)
         if(!isDownloaded)
             stop("Ligand-Receptor database was not downloaded successfully.")
-    else {
-         cat(cli::cli_alert_info("Ligand-Receptor database downloaded with success.","\n"))
-        }
-
+        .addCache(fpath=databaseFilePath,cacheDir=databaseCacheDir,resourceName="LRdb",verbose=verbose)
     }
+    
+    else {cli::cli_alert_info("{.val LRdb} database downloaded with success.","\n")}
 
     if(file.exists(databaseFilePath)) {
          
-         connexionObject <- DBI::dbCanConnect(RSQLite::SQLite(), databaseFilePath)
+        connexionObject <- DBI::dbCanConnect(RSQLite::SQLite(), databaseFilePath)
 
         .checkDatabaseValidity(connexionObject=connexionObject)
 
@@ -47,6 +48,7 @@ createDatabase <- function(onRequest=TRUE){
 
     return(invisible())
 }
+
 
 #' Fetch the database from internet.
 #'
@@ -120,44 +122,7 @@ createDatabase <- function(onRequest=TRUE){
 #' checkLastVersion(update=FALSE)
 checkDatabaseLastVersion <- function(update=FALSE) {
 
-    databaseFilePathCopy <- paste(Sys.getenv("SingleCellSignalR_CACHEDIR")
-        ,"SingleCellSignalR.copy.db"
-        ,sep = "/")
-
-    isDownloaded <- .downloadDatabase(Sys.getenv("SingleCellSignalR_DB_URL"),databaseFilePathCopy)
-    if(!isDownloaded)
-            stop("New Ligand-Receptor database was not downloaded successfully.")
-
-    connexionObject <- DBI::dbCanConnect(RSQLite::SQLite(), databaseFilePathCopy)
-
-    .checkDatabaseValidity(connexionObject)
-    
-    md5Local <- tools::md5sum(databaseFilePathCopy)
-
-    SingleCellSignalRCon <- DBI::dbConnect(RSQLite::SQLite(), databaseFilePathCopy)
  
-    md5DB <- DBI::dbGetQuery(SingleCellSignalRCon, "SELECT md5 FROM Release ORDER BY id DESC LIMIT 1")
-
-    # If DB file is not the correct last database :
-    if(md5Local!=md5DB){
-         cat(cli::cli_alert_info("A new Ligand-Receptor database version is available !","\n") )
-         if (update){ 
-            #createDatabase(onRequest=update) 
-            databaseFilePath <- paste(Sys.getenv("SingleCellSignalR_CACHEDIR")
-            ,basename(Sys.getenv("SingleCellSignalR_DB_URL"))
-            ,sep = "/")
-            unlink(databaseFilePath)
-            file.rename(databaseFilePathCopy,databaseFilePath)
-            cat(cli::cli_alert("Ligand-Receptor database has been updated.","\n"))
-
-         }
-         else { 
-            unlink(databaseFilePathCopy)
-            cat(cli::cli_alert("Install new version using `createDatabase(onRequest=TRUE)`.","\n"))
-        } 
-    }
-
-    DBI::dbDisconnect(SingleCellSignalRCon)
 
 }
      

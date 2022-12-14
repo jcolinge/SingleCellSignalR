@@ -9,18 +9,19 @@
     cacheDir <- rappdirs::user_cache_dir("R/SingleCellSignalR")
     Sys.setenv("SingleCellSignalR_CACHEDIR" = cacheDir)
     
-    createDatabase(onRequest=FALSE)
+    urlDatabase <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/database/LRdb.db"
+    Sys.setenv("SingleCellSignalR_DB_URL"= urlDatabase)
 
+    createDatabase(onRequest=FALSE)
+    
     ################################
     ##   Ressource Cache Files   ###  
     ################################
 
-    urlDatabase <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/database/SingleCellSignalR.db"
     urlGo       <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/resources/gobp.rds"
     urlReactome <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/resources/reactome.rds"
     urlPwC <- "https://partage-dev.montp.inserm.fr:9192/CBSB/SignalR/resources/PwC_ReactomeKEGG.rds"
 
-    Sys.setenv("SingleCellSignalR_DB_URL"= urlDatabase)
     Sys.setenv("SingleCellSignalR_GO_URL" = urlGo)
     Sys.setenv("SingleCellSignalR_Reactome_URL" = urlReactome)
     Sys.setenv("SingleCellSignalR_PwC_URL" = urlPwC)

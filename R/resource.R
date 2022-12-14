@@ -1,3 +1,53 @@
+#' Get ressource from the cache.
+#'
+#' Get  resources (pathways, or PathwayCommons network 
+#' from \url{https://www.pathwaycommons.org/})
+#' stored in the cache.
+#'
+#' @param resourceName   Ressource name.
+#'
+#' @importFrom cli cli_alert_danger
+#' @export
+#' @examples
+#' reactome <-  getResource(resourceName="Reactome")
+getResource <- function(resourceName=NULL) {
+
+    if (!resourceName %in% c("GO-BP","Reactome","PwC")){
+        cat(cli::cli_alert_danger(".val {GO-BP, Reactome & PwC} are the only keywords alllowed.","\n"))
+        stop() 
+    }
+    cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
+    resourcesCacheDir <- paste(cacheDir,"resources",sep="/")
+    
+    # safeguard
+    if(!dir.exists(resourcesCacheDir)) {
+        cat(cli::cli_alert_danger("Resources repository doesn't exist.","\n"))
+        stop()
+    } 
+
+    bfc <- BiocFileCache::BiocFileCache(resourcesCacheDir,ask = FALSE)
+
+    dataframe <- .readFromCache(bfc=bfc,resourceName=resourceName)
+
+    # Due to the fact React and Go are organized differently
+    if(resourceName=="Reactome"){
+         if(!all(c('Reactome ID','Gene name','Reactome name') %in% colnames(dataframe))){
+           cat(cli::cli_alert_danger("Colnames of raw data are not well defined.","\n"))
+           stop()
+         }          
+        dataframe <- dataframe[,c('Reactome name','Gene name','Reactome ID')]
+    }
+
+    if(resourceName=="GO-BP"){
+          if(!all(c('GO ID','Gene name','GO name') %in% colnames(dataframe))){
+           cat(cli::cli_alert_danger("Colnames of raw data are not well defined.","\n"))
+           stop()
+         }  
+         dataframe <- dataframe[,c('GO ID','Gene name','GO name')]
+    }
+
+    return(dataframe)
+}
 #' Import pathways from a file to dataframe 
 #'
 #' Pathways are defined in Reactome and
@@ -188,9 +238,6 @@ return(dataframeFromGmt)
 
 } #.formatPathwaysFromGmt
 
- 
-
-
 #' Creache all resources.
 #'
 #' Create cache for all resources (pathways, or PWC network)
@@ -215,9 +262,9 @@ createResources <- function(onRequest=TRUE,verbose=FALSE) {
 
    # Do it once, onLoad
    if(!dir.exists(resourcesCacheDir) | onRequest) {
-        .addCache(url=Sys.getenv("SingleCellSignalR_GO_URL"),cacheDir=resourcesCacheDir,resourceName="GO-BP",verbose=verbose)
-        .addCache(url=Sys.getenv("SingleCellSignalR_Reactome_URL"),cacheDir=resourcesCacheDir,resourceName="Reactome",verbose=verbose)
-        .addCache(url=Sys.getenv("SingleCellSignalR_PwC_URL"),cacheDir=resourcesCacheDir,resourceName="PwC",verbose=verbose)
+        .addCache(fpath=Sys.getenv("SingleCellSignalR_GO_URL"),cacheDir=resourcesCacheDir,resourceName="GO-BP",verbose=verbose)
+        .addCache(fpath=Sys.getenv("SingleCellSignalR_Reactome_URL"),cacheDir=resourcesCacheDir,resourceName="Reactome",verbose=verbose)
+        .addCache(fpath=Sys.getenv("SingleCellSignalR_PwC_URL"),cacheDir=resourcesCacheDir,resourceName="PwC",verbose=verbose)
         cat("\n")
 
     }
@@ -226,305 +273,3 @@ return(invisible(NULL))
 
 }
 
-
-#' Add cache for resources.
-#'
-#' Add cache for resources (pathways, or PWC network)
-#' downloaded from the web.
-#' This part is handled with BiocFileCache.
-#' Otherwise datatabase, is handled by another process
-#' not relying on BiocFileCache instance.
-#'
-#' @param url    Path to file on the web.
-#' @param resourceName   Ressource name.
-#' @param cacheDir   Absolute path to cache directory.
-#' @param verbose   Default FALSE
-
-#' @import BiocFileCache
-#' @import httr
-#' @keywords internal
-.addCache <- function(url,cacheDir,resourceName,verbose=FALSE) {
-
-        if(!dir.exists(cacheDir)) 
-            dir.create(cacheDir)
-       
-        bfc <- BiocFileCache::BiocFileCache(cacheDir,ask = FALSE)
-   
-        #safeguard
-        cacheHits <- bfcquery(bfc,query=resourceName,field="rname")
-        if(nrow(cacheHits) >= 1) {
-         cat(cli::cli_alert_danger("Multiple cache results found.","\n"))
-         stop("Please clear your cache with `cacheClear()` before running `createResources`!")
-        }
-
-        config <- httr::set_config(config(ssl_verifypeer = 0L,ssl_verifyhost = 0L))
-            
-        # if fname="exact" remove the unique identifier
-        BiocFileCache::bfcadd(bfc,rname=resourceName,config=config,fpath=url)
-
-        cli::cli_alert_info("{.val {resourceName}} added to cache with success.")
-
-        if(verbose){
-            print(BiocFileCache::bfccache(bfc))
-            print(length(bfc)) 
-            print(BiocFileCache::bfcinfo(bfc))
-        }
-
-return(invisible(NULL))
-
-}
-
-#' Get ressource from the cache.
-#'
-#' Get  resources (pathways, or PathwayCommons network 
-#' from \url{https://www.pathwaycommons.org/})
-#' stored in the cache.
-#'
-#' @param resourceName   Ressource name.
-#'
-#' @importFrom cli cli_alert_danger
-#' @export
-#' @examples
-#' reactome <-  getResource(resourceName="Reactome")
-getResource <- function(resourceName=NULL) {
-
-    if (!resourceName %in% c("GO-BP","Reactome","PwC")){
-        cat(cli::cli_alert_danger(".val {GO-BP, Reactome & PwC} are the only keywords alllowed.","\n"))
-        stop() 
-    }
-    cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
-    resourcesCacheDir <- paste(cacheDir,"resources",sep="/")
-    
-    # safeguard
-    if(!dir.exists(resourcesCacheDir)) {
-        cat(cli::cli_alert_danger("Resources repository doesn't exist.","\n"))
-        stop()
-    } 
-
-    bfc <- BiocFileCache::BiocFileCache(resourcesCacheDir,ask = FALSE)
-
-    dataframe <- .readFromCache(bfc=bfc,resourceName=resourceName)
-
-    # Due to the fact React and Go are organized differently
-    if(resourceName=="Reactome"){
-         if(!all(c('Reactome ID','Gene name','Reactome name') %in% colnames(dataframe))){
-           cat(cli::cli_alert_danger("Colnames of raw data are not well defined.","\n"))
-           stop()
-         }          
-        dataframe <- dataframe[,c('Reactome name','Gene name','Reactome ID')]
-    }
-
-    if(resourceName=="GO-BP"){
-          if(!all(c('GO ID','Gene name','GO name') %in% colnames(dataframe))){
-           cat(cli::cli_alert_danger("Colnames of raw data are not well defined.","\n"))
-           stop()
-         }  
-         dataframe <- dataframe[,c('GO ID','Gene name','GO name')]
-    }
-
-    return(dataframe)
-}
-
-#' Read from the cache.
-#'
-#' Access  resources (pathways, or PathwayCommons network 
-#' from \url{https://www.pathwaycommons.org/})
-#' stored in the cache.
-#'
-#' @param bfc Object of class BiocFileCache, created by a call to 
-#' BiocFileCache::BiocFileCache()
-#' @param resourceName keyword associated to a specific resourceName
-#' @keywords internal
-.readFromCache <- function(bfc,resourceName) {
-
-    cacheHits <- bfcquery(bfc,query=resourceName,field="rname")
-    if(nrow(cacheHits) == 0) {
-        cat(cli::cli_alert_danger("No cache result found.","\n"))
-        stop() 
-    }
-    else if(nrow(cacheHits) > 1) {
-         cat(cli::cli_alert_danger("Multiple cache results found.","\n"))
-         stop("Please, clear your cache by running cacheClear()!")
-    } else {
-        rid <- cacheHits$rid
-        result <- readRDS(bfc[[rid ]])
-
-        return(result)
-    }
-}
-
-#' Check existence of a record in the cache.
-#'
-#' Check if the cache record exists or not, by passing
-#' to the function an associated keyword
-#' associated to the resource we are looking for.
-#'
-#' @param bfc Object of class BiocFileCache, created by a call to 
-#' BiocFileCache::BiocFileCache()
-#' @param resourceName keyword associated to a specific resource name
-#' 
-#' @keywords internal
-#' @return logical This function returns TRUE if a record with 
-#' the requested keyword already  exists in the file cache,
-#'  otherwise returns FALSE.
-.checkInCache <- function(bfc,resourceName) {
-    cacheHits <- bfcquery(bfc, query = resourceName, field = "rname")
-    as.logical(nrow(cacheHits))
-}
-
-#' Check valid cache.
-#'
-#' This function checks if a cache entry is a valid RDS file.
-#' Returns TRUE if the cache entry is valid, FALSE otherwise.
-#' In the case of an invalid file the cache entry and file are 
-#' deleted.
-#'
-#' @param bfc Object of class BiocFileCache, created by a call to 
-#' BiocFileCache::BiocFileCache()
-#' @param resourceName keyword associated to a specific resource name.
-#' @importFrom cli cli_alert_danger
-#' @importFrom BiocFileCache bfcremove
-#' @keywords internal
-.checkValidCache <- function(bfc, resourceName) {
-    cacheHits <- bfcquery(bfc,query=resourceName,field="rname")
-    if(nrow(cacheHits) == 0) {
-       cat(cli::cli_alert_danger("No cache result found.","\n"))
-       stop() 
-    }
-    else if(nrow(cacheHits) > 1) {
-         cat(cli::cli_alert_danger("Multiple cache results found.","\n"))
-         stop("Please clear your cache by running cacheClear()!")
-    } else {
-        test <- tryCatch(is.list(infoRDS(cacheHits$rpath[1])), 
-                         error = function(e) { return(FALSE) })
-        if(!test) 
-            BiocFileCache::bfcremove(bfc, cacheHits$rid[1])
-        return(test)
-    }
-}
-
-
-#' Delete cache content.
-#'
-#' Delete the content of cache directory.
-#'
-#' @importFrom BiocFileCache removebfc
-#' @export
-#' @examples
-#  if(FALSE)
-#   cacheClear()
-cacheClear <- function() {
-
-    cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
-    resourcesCacheDir <- paste(cacheDir,"resources",sep="/")
-
-    # safeguard
-    if(!dir.exists(resourcesCacheDir)) {
-        message("Directory is already clean.","\n")
-        return(invisible(NULL))
-    } 
-
-    bfc <- BiocFileCache::BiocFileCache(resourcesCacheDir, ask = FALSE)
-    BiocFileCache::removebfc(bfc, ask = FALSE)
-
-    #dir.create(resourcesCacheDir)
-    message("SingleCellSignalR cache has been deleted.\n", 
-                "- Location: ", resourcesCacheDir, "\n",
-                "- No. of files: 0", "\n")
-
-    return(invisible(NULL))
-
-}
-
-#' Get cache content informations..
-#'
-#' Get cache content informations.
-#'
-#' @importFrom BiocFileCache
-#' @importFrom cli cli_alert_danger
-#' @export
-#' @examples
-#  if(FALSE)
-#   cacheInfo()
-cacheInfo <- function() {
-
-    cacheDir <-  Sys.getenv(x = "SingleCellSignalR_CACHEDIR")
-    resourcesCacheDir <- paste(cacheDir,"resources",sep="/")
-    
-    # safeguard
-    if(!dir.exists(resourcesCacheDir)) {
-        dir.create(resourcesCacheDir)
-    } 
-
-    files <-  list.files(resourcesCacheDir)
-
-    if(length(files)==0) {
-        message("SingleCellSignalR cache uninitialized.\n", 
-                "- Location: ", resourcesCacheDir, "\n",
-                "- No. of files: ", length(files), "\n")
-
-    } else {
-        
-        bfc <- BiocFileCache::BiocFileCache(resourcesCacheDir, ask = FALSE)
-        files <- bfcinfo(bfc)$rpath
-        total_size <- sum(file.size(files))
-        size_obj <- structure(total_size, class = "object_size")
-    
-        message("SingleCellSignalR cache: \n", 
-                "- Location: ", resourcesCacheDir, "\n",
-                "- No. of files: ", length(files), "\n",
-                "- Total size: ", format(size_obj, units = "auto"), "\n")
-    }
-
-    return(invisible(resourcesCacheDir))
-}
-
-
-#' Check remote files ressources are changed.
-#'
-#' Check to see if some ressources has
-#' has been updated.
-#'
-#' @import BiocFileCache httr cli
-#' @return NULL
-#' have been updated. See Updates.txt online.
-#' @export
-#' @examples
-#  if(FALSE)
-#   checkCacheLastVersion()
-checkCacheLastVersion <- function() {
-
-    cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
-    resourcesCacheDir <- paste(cacheDir,"resources",sep="/")
-
-   # safeguard
-    if(!dir.exists(resourcesCacheDir)) {
-        dir.create(resourcesCacheDir)
-    } 
-
-    files <-  list.files(resourcesCacheDir)
-
-    if(length(files)==0) {
-        message("SingleCellSignalR cache uninitialized.\n", 
-                "- Location: ", resourcesCacheDir, "\n",
-                "- No. of files: ", length(files), "\n")
-        return(invisible(NULL))
-    }
-
-    config <- httr::set_config(config(ssl_verifypeer = 0L,ssl_verifyhost = 0L))
-    bfc <- BiocFileCache::BiocFileCache(resourcesCacheDir, ask = FALSE)
-         
-    if(!all(BiocFileCache::bfcneedsupdate(bfc))){
-        message("Remote SingleCellSignalR have been updated.\n")    
-        cat(cli::cli_alert_info("Please clear your cache with `cacheClear()` to update locally!","\n"))
-        return(invisible(NULL))
-    }
-
-    else {
-       cli::cli_alert_info("Remote SingleCellSignalR ressources have still not been updated.\n")
-
-    }
-
-    return(invisible(NULL))
-
-}

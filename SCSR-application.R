@@ -21,6 +21,18 @@ library(SingleCellSignalR)
 #Sys.setenv("SingleCellSignalR_CACHEDIR"
 # = "/data/villemin/data2/villemin/SingleCellSignalR/Input")
 
+print("CreateDatabase on Request")
+createDatabase()
+
+print("checkLastVersion")
+#checkDatabaseLastVersion(update=FALSE)
+
+
+print("checkLastVersion and update if a new one exists.")
+#checkDatabaseLastVersion(update=TRUE)
+
+stop()
+
 # 1 ##############################
 
 
@@ -51,15 +63,6 @@ dataReactomeGmt <- updatePathwaysFromFile(
 
 head(dataReactomeGmt)
 
-print("CreateDatabase on Request")
-#createDatabase()
-
-print("checkLastVersion")
-checkDatabaseLastVersion(update=FALSE)
-
-stop()
-print("checkLastVersion and update if a new one exists.")
-#checkDatabaseLastVersion(update=TRUE)
 
 print("getInteractions")
 interactions <- getInteractions()
