@@ -1,3 +1,44 @@
+####################################################
+###     Create / Get Ressources                  ###
+####################################################
+
+#' Create all resources.
+#'
+#' Create cache for all resources (pathways, or PWC network)
+#' downloaded from the web when library is first loaded.
+#' This part is handled with BiocFileCache.
+#' Otherwise datatabase, is handled by another process
+#' not relying on BiocFileCache instance.
+#'
+#' @param onRequest logical True if you force
+#' download again. This will overwrite 
+#' pre-existing database. Default is True.
+#' @param verbose Default is FALSE
+#'
+#' @export 
+#' @examples
+#' if(FALSE)
+#'  createResources() 
+createResources <- function(onRequest=TRUE,verbose=FALSE) {
+
+   cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
+   resourcesCacheDir <- paste(cacheDir,"resources",sep="/")
+
+   # Do it once, onLoad
+   if(!dir.exists(resourcesCacheDir) | onRequest) {
+        .cacheAdd(fpath=Sys.getenv("SingleCellSignalR_GO_URL"),cacheDir=resourcesCacheDir,resourceName="GO-BP",verbose=verbose)
+        .cacheAdd(fpath=Sys.getenv("SingleCellSignalR_Reactome_URL"),cacheDir=resourcesCacheDir,resourceName="Reactome",verbose=verbose)
+        .cacheAdd(fpath=Sys.getenv("SingleCellSignalR_PwC_URL"),cacheDir=resourcesCacheDir,resourceName="PwC",verbose=verbose)
+        cat("\n")
+
+    }
+
+return(invisible(NULL))
+
+}
+
+
+
 #' Get ressource from the cache.
 #'
 #' Get  resources (pathways, or PathwayCommons network 
@@ -32,7 +73,7 @@ getResource <- function(resourceName=NULL) {
     # Due to the fact React and Go are organized differently
     if(resourceName=="Reactome"){
          if(!all(c('Reactome ID','Gene name','Reactome name') %in% colnames(dataframe))){
-           cat(cli::cli_alert_danger("Colnames of raw data are not well defined.","\n"))
+           cli::cli_alert_danger("Colnames of raw data are not well defined.\n")
            stop()
          }          
         dataframe <- dataframe[,c('Reactome name','Gene name','Reactome ID')]
@@ -40,7 +81,7 @@ getResource <- function(resourceName=NULL) {
 
     if(resourceName=="GO-BP"){
           if(!all(c('GO ID','Gene name','GO name') %in% colnames(dataframe))){
-           cat(cli::cli_alert_danger("Colnames of raw data are not well defined.","\n"))
+           cli::cli_alert_danger("Colnames of raw data are not well defined.\n")
            stop()
          }  
          dataframe <- dataframe[,c('GO ID','Gene name','GO name')]
@@ -48,6 +89,11 @@ getResource <- function(resourceName=NULL) {
 
     return(dataframe)
 }
+
+####################################################
+###     / Parse / Format / Import Ressources     ###
+####################################################
+
 #' Import pathways from a file to dataframe 
 #'
 #' Pathways are defined in Reactome and
@@ -117,7 +163,7 @@ return (db)
     data <- jsonlite::read_json(file,simplifyVector=TRUE)
 
     if (!all(c("exactSource","geneSymbols") %in% names(data[[1]]))){
-          cat(cli::cli_alert_danger("Json format is invalid.","\n"))
+          cli::cli_alert_danger("Json format is invalid.\n")
           stop("Json must follow the standard from The Molecular Signatures Database (MSigDB).")
     }
 
@@ -237,39 +283,4 @@ return (db)
 return(dataframeFromGmt)
 
 } #.formatPathwaysFromGmt
-
-#' Creache all resources.
-#'
-#' Create cache for all resources (pathways, or PWC network)
-#' downloaded from the web when library is first loaded.
-#' This part is handled with BiocFileCache.
-#' Otherwise datatabase, is handled by another process
-#' not relying on BiocFileCache instance.
-#'
-#' @param onRequest logical True if you force
-#' download again. This will overwrite 
-#' pre-existing database. Default is True.
-#' @param verbose Default is FALSE
-#'
-#' @export 
-#' @examples
-#' if(FALSE)
-#'  createResources() 
-createResources <- function(onRequest=TRUE,verbose=FALSE) {
-
-   cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
-   resourcesCacheDir <- paste(cacheDir,"resources",sep="/")
-
-   # Do it once, onLoad
-   if(!dir.exists(resourcesCacheDir) | onRequest) {
-        .addCache(fpath=Sys.getenv("SingleCellSignalR_GO_URL"),cacheDir=resourcesCacheDir,resourceName="GO-BP",verbose=verbose)
-        .addCache(fpath=Sys.getenv("SingleCellSignalR_Reactome_URL"),cacheDir=resourcesCacheDir,resourceName="Reactome",verbose=verbose)
-        .addCache(fpath=Sys.getenv("SingleCellSignalR_PwC_URL"),cacheDir=resourcesCacheDir,resourceName="PwC",verbose=verbose)
-        cat("\n")
-
-    }
-
-return(invisible(NULL))
-
-}
 

@@ -1,3 +1,4 @@
+
 library(glue)
 library(devtools)
 library(dplyr)
@@ -12,8 +13,6 @@ Output  <- '/data2/villemin/SingleCellSignalR/Output'
 Input   <- '/data2/villemin/SingleCellSignalR/Input'
 
 devtools::install(glue("{baseDir}{package}"))
-
-
 library(SingleCellSignalR)
 #suppressPackageStartupMessages(library(SingleCellSignalR))
 
@@ -21,22 +20,20 @@ library(SingleCellSignalR)
 #Sys.setenv("SingleCellSignalR_CACHEDIR"
 # = "/data/villemin/data2/villemin/SingleCellSignalR/Input")
 
-print("CreateDatabase on Request")
-createDatabase()
+cacheInfo(dir="both")
+cacheVersion()
+cacheClear()
+cacheInfo(dir="both")
+createDatabase(verbose=TRUE)
+createResources(verbose=TRUE)
+cacheInfo(dir="both")
 
-print("checkLastVersion")
-#checkDatabaseLastVersion(update=FALSE)
-
-
-print("checkLastVersion and update if a new one exists.")
-#checkDatabaseLastVersion(update=TRUE)
 
 stop()
 
 # 1 ##############################
 
 
-#cacheClear()
 
 #createResources()
 
