@@ -6,11 +6,16 @@ library(stringr)
 library(foreach)
 library(doParallel)
 
-# Create 4 dirs 
+# Create 4 dirs - Server 
 baseDir <- '/data/villemin'
 package <- '/data2/villemin/SingleCellSignalR/SingleCellSignalR'
 Output  <- '/data2/villemin/SingleCellSignalR/Output'
 Input   <- '/data2/villemin/SingleCellSignalR/Input'
+# Create 4 dirs - Local 
+baseDir <- '/home/jp'
+package <- '/Documents/workingDir/SingleCellSignalR'
+Output  <- '/Documents/workingDir/Output'
+Input   <- '/Documents/workingDir/Input'
 
 devtools::install(glue("{baseDir}{package}"))
 library(SingleCellSignalR)
@@ -19,14 +24,14 @@ library(SingleCellSignalR)
 # User can set a different repository for cache
 #Sys.setenv("SingleCellSignalR_CACHEDIR"
 # = "/data/villemin/data2/villemin/SingleCellSignalR/Input")
-
-cacheInfo(dir="both")
+cacheClear()
+cacheInfo()
 cacheVersion()
 cacheClear()
-cacheInfo(dir="both")
-createDatabase(verbose=TRUE)
-createResources(verbose=TRUE)
-cacheInfo(dir="both")
+cacheInfo()
+createDatabase(verbose=FALSE)
+createResources(verbose=FALSE)
+cacheInfo()
 
 
 stop()

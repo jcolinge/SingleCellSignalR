@@ -30,8 +30,8 @@ createResources <- function(onRequest=TRUE,verbose=FALSE) {
         .cacheAdd(fpath=Sys.getenv("SingleCellSignalR_Reactome_URL"),cacheDir=resourcesCacheDir,resourceName="Reactome",verbose=verbose)
         .cacheAdd(fpath=Sys.getenv("SingleCellSignalR_PwC_URL"),cacheDir=resourcesCacheDir,resourceName="PwC",verbose=verbose)
         cat("\n")
-
     }
+    
 
 return(invisible(NULL))
 

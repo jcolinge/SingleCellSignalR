@@ -15,6 +15,7 @@
 #' @param download   Logical(TRUE/FALSE) Default FALSE for download.
 #'
 #' @import BiocFileCache
+#' @import cli
 #' @import httr
 #' @keywords internal
 .cacheAdd <- function(fpath,cacheDir,resourceName,verbose=FALSE,download=TRUE) {
@@ -29,7 +30,7 @@
         #safeguard
         cacheHits <- bfcquery(bfc,query=resourceName,field="rname")
         if(nrow(cacheHits) >= 1) {
-         cat(cli::cli_alert_danger("Multiple cache results found for {.var {dir}}.","\n"))
+         cli::cli_alert_danger("Multiple cache results found for {.var {dir}}.\n")
          stop("Please clear your cache with `cacheClear()`!")
         }
 
@@ -38,8 +39,8 @@
         # if fname="exact" remove the unique identifier
         BiocFileCache::bfcadd(bfc,rname=resourceName,config=config,fpath=fpath,download=download)
 
-        cli::cli_alert_info("{.val {resourceName}} added to cache with success.")
-
+        cli::cli_alert_sucess("{.val {resourceName}} added to cache with success.\n")
+       
         if(verbose){
             cli::cli_alert("{.path {BiocFileCache::bfccache(bfc)}}")
             print(BiocFileCache::bfcinfo(bfc))
@@ -98,11 +99,14 @@ cacheClear <- function(dir=c("both","resources","database")) {
     cacheDir <-     Sys.getenv("SingleCellSignalR_CACHEDIR")
     cacheDir <- paste(cacheDir,dir,sep="/")
 
+
     # safeguard
     if(!dir.exists(cacheDir)) {
-        cli::cli_alert("SingleCellSignalR cache for {.val {dir}} doesn't exist.","\n")
+        cli::cli_alert("SingleCellSignalR cache {.val {dir}} doesn't exist.\n")
         return(invisible(NULL))
     } 
+
+    word <- ifelse(dir=="resources", "have", "has")
 
     bfc <- BiocFileCache::BiocFileCache(cacheDir, ask = FALSE)
     BiocFileCache::removebfc(bfc, ask = FALSE)
@@ -152,7 +156,7 @@ cacheInfo <- function(dir=c("both","resources","database")) {
 
     bfc <- BiocFileCache::BiocFileCache(cacheDir, ask = FALSE)
     files <- bfcinfo(bfc)$rpath
-    print(files)
+  
     if(length(files)==0) {
        message("SingleCellSignalR ",dir," cache uninitialized.\n", 
                 "- Location: ", cacheDir, "\n",
@@ -163,9 +167,7 @@ cacheInfo <- function(dir=c("both","resources","database")) {
         
         total_size <- sum(file.size(files))
         size_obj <- structure(total_size, class = "object_size")
-        print(total_size)
-        print(size_obj)
-
+       
         message("SingleCellSignalR ",dir," cache: \n", 
                 "- Location:  ",cacheDir," \n",
                 "- No. of files:  ",length(files),"\n",
@@ -229,13 +231,13 @@ cacheVersion <- function(dir=c("both","resources","database")) {
     
     if(any(BiocFileCache::bfcneedsupdate(bfc))){
         cli::cli_alert("Remote SingleCellSignalR {.val {dir}} {word} been updated.\n")    
-        cli::cli_alert_info("To update locally, clear your cache with cacheClear({.var {dir}})","\n")
+        cli::cli_alert_info("To update locally, clear your cache with cacheClear({.var {dir}}).\n")
         return(invisible(NULL))
     }
 
     else {
        cli::cli_alert("Remote SingleCellSignalR {.val {dir}} {word} not been updated.\n")
-
+       cat("\n")
     }
 
     return(invisible(NULL))
@@ -266,7 +268,7 @@ cacheVersion <- function(dir=c("both","resources","database")) {
         stop() 
     }
     else if(nrow(cacheHits) > 1) {
-        cli::cli_alert_danger("Multiple cache results found.","\n")
+        cli::cli_alert_danger("Multiple cache results found.\n")
          stop("Please, clear your cache! See cacheClear() function.")
     } else {
 
@@ -299,11 +301,11 @@ cacheVersion <- function(dir=c("both","resources","database")) {
 
     cacheHits <- BiocFileCache::bfcquery(bfc,query=resourceName,field="rname")
     if(nrow(cacheHits) == 0) {
-       cli::cli_alert_danger("No cache result found.","\n")
+       cli::cli_alert_danger("No cache result found.\n")
        stop() 
     }
     else if(nrow(cacheHits) > 1) {
-         cli::cli_alert_danger("Multiple cache results found.","\n")
+         cli::cli_alert_danger("Multiple cache results found.\n")
          stop("Please, clear your cache! See cacheClear() function.")
     } else {
         
