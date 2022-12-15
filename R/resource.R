@@ -31,7 +31,7 @@ createResources <- function(onRequest=TRUE,verbose=FALSE) {
         .cacheAdd(fpath=Sys.getenv("SingleCellSignalR_PwC_URL"),cacheDir=resourcesCacheDir,resourceName="PwC",verbose=verbose)
         cat("\n")
     }
-    
+
 
 return(invisible(NULL))
 
@@ -48,6 +48,7 @@ return(invisible(NULL))
 #' @param resourceName   Ressource name.
 #'
 #' @importFrom cli cli_alert_danger
+#' @import BiocFileCache
 #' @export
 #' @examples
 #' reactome <-  getResource(resourceName="Reactome")

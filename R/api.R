@@ -6,7 +6,7 @@
 #' @param idRelease integer id version Release
 #' Default is NULL so last version is selected.
 #'
-#' @import DBI RSQLite
+#' @import DBI RSQLite BiocFileCache
 #' @export
 #' @examples
 #' print("getComplexes")
@@ -14,11 +14,18 @@
 getComplexes <- function(idRelease=NULL) { 
 
     cacheDir <- Sys.getenv("SingleCellSignalR_CACHEDIR")
+    databaseCacheDir <- paste(cacheDir,"database",sep="/")
+
     url      <-  Sys.getenv("SingleCellSignalR_DB_URL")
  
-    databaseFilePath <- paste(cacheDir,basename(url),sep = "/")
+    bfc <- BiocFileCache::BiocFileCache(databaseCacheDir,ask = FALSE)
+   
+    databaseFilePath <- BiocFileCache::bfcrpath(bfc, rids = "BFC1")
+
+    print(databaseFilePath)
 
     SingleCellSignalRCon <- dbConnect(RSQLite::SQLite(), databaseFilePath)
+
     if(is.null(idRelease))
         release <- DBI::dbGetQuery(SingleCellSignalRCon, 'SELECT id FROM Release ORDER BY id DESC LIMIT 1')
  
@@ -64,7 +71,7 @@ getComplexes <- function(idRelease=NULL) {
 #' @param idRelease integer id version Release
 #' Default is NULL so last version is selected.
 #'
-#' @import DBI RSQLite
+#' @import DBI RSQLite BiocFileCache
 #' @importFrom cli cli_abort
 #' @export
 #' @examples
@@ -75,7 +82,12 @@ getInteractions <- function(idRelease=NULL) {
     cacheDir <- Sys.getenv("SingleCellSignalR_CACHEDIR")
     url      <-  Sys.getenv("SingleCellSignalR_DB_URL")
  
-    databaseFilePath <- paste(cacheDir,basename(url),sep = "/")
+    databaseCacheDir <- paste(cacheDir,"database",sep="/")
+    
+    bfc <- BiocFileCache::BiocFileCache(databaseCacheDir,ask = FALSE)
+    databaseFilePath <- BiocFileCache::bfcrpath(bfc, rids = "BFC1")
+
+    print(databaseFilePath)
 
     SingleCellSignalRCon <- dbConnect(RSQLite::SQLite(), databaseFilePath)
     if(is.null(idRelease))

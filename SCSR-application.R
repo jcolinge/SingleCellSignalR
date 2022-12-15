@@ -24,15 +24,23 @@ library(SingleCellSignalR)
 # User can set a different repository for cache
 #Sys.setenv("SingleCellSignalR_CACHEDIR"
 # = "/data/villemin/data2/villemin/SingleCellSignalR/Input")
-cacheClear()
+#cacheClear()
 cacheInfo()
-cacheVersion()
-cacheClear()
-cacheInfo()
-createDatabase(verbose=FALSE)
-createResources(verbose=FALSE)
-cacheInfo()
+#cacheVersion()
+#cacheClear()
+#cacheInfo()
+#createDatabase(verbose=FALSE)
+#createResources(verbose=FALSE)
+#cacheInfo()
 
+print("getInteractions")
+interactions <- getInteractions()
+head(interactions)
+dim(interactions)
+
+print("getComplexes")
+complexes <- getComplexes()
+head(complexes)
 
 stop()
 

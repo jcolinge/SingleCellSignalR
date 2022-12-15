@@ -19,6 +19,7 @@ createDatabase <- function(onRequest=TRUE,verbose=FALSE){
     cacheDir <- Sys.getenv("SingleCellSignalR_CACHEDIR")
     databaseCacheDir <- paste(cacheDir,"database",sep="/")
     
+    rName<- "LRdb"
     url <-  Sys.getenv("SingleCellSignalR_DB_URL")
  
     databaseFilePath <- paste(databaseCacheDir
@@ -33,18 +34,19 @@ createDatabase <- function(onRequest=TRUE,verbose=FALSE){
 
         .cacheAdd(fpath=url,
                 cacheDir=databaseCacheDir,
-                    resourceName="LRdb",
+                    resourceName=rName,
                         verbose=verbose)
 
     }
 
-    #fc <- BiocFileCache::BiocFileCache(databaseCacheDir,ask = FALSE)
-    #cacheHits <- bfcquery(bfc,query="LRdb",field="rname")
-    #rid <- cacheHits$rid
-    #print(rid)
-    #if(file.exists(bfc[[rid]])) {
+    bfc <- BiocFileCache::BiocFileCache(databaseCacheDir,ask = FALSE)
+  
+    #databaseFilePath <- BiocFileCache::bfcrpath(bfc,url)
+    #print(databaseFilePath)
+
+    #if(file.exists(databaseFilePath)) {
          
-    #    connexionObject <- DBI::dbCanConnect(RSQLite::SQLite(), databaseFilePath)
+   #     connexionObject <- DBI::dbCanConnect(RSQLite::SQLite(), databaseFilePath)
 
     #    .checkDatabaseValidity(connexionObject=connexionObject)
 
