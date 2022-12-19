@@ -39,7 +39,7 @@
         # if fname="exact" remove the unique identifier
         BiocFileCache::bfcadd(bfc,rname=resourceName,config=config,fpath=fpath,download=download)
 
-        cli::cli_alert_sucess("{.val {resourceName}} added to cache with success.\n")
+        cli::cli_alert_success("{.val {resourceName}} added to cache with success.\n")
        
         if(verbose){
             cli::cli_alert("{.path {BiocFileCache::bfccache(bfc)}}")

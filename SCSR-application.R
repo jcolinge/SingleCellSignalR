@@ -27,10 +27,10 @@ library(SingleCellSignalR)
 #cacheClear()
 cacheInfo()
 #cacheVersion()
-#cacheClear()
-#cacheInfo()
-#createDatabase(verbose=FALSE)
-#createResources(verbose=FALSE)
+cacheClear()
+cacheInfo()
+createDatabase(verbose=FALSE)
+createResources(verbose=FALSE)
 #cacheInfo()
 
 print("getInteractions")
@@ -104,8 +104,6 @@ intersect(interactions$Ligand,interactions$Receptor)
 dim(complexes)
 dim(complexes[complexes$type=="L",])
 dim(complexes[complexes$type=="R",])
-
-
 
 write.table(interactions ,file = glue("{baseDir}{Output}/interactions.csv"), col.names= TRUE,row.names =  FALSE, quote = F,sep = "\t")
 write.table(complexes ,file = glue("{baseDir}{Output}/complexes.csv"), col.names= TRUE,row.names =  FALSE, quote = F,sep = "\t")
