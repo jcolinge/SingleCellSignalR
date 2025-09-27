@@ -1,6 +1,6 @@
 
    
-# SingleCellSignalR <img  width="120" height="139" src="man/figures/logo.png" align="right" />
+# SingleCellSignalR v1 <img  width="120" height="139" src="man/figures/logo.png" align="right" />
 <!-- badges: start -->
 [![CRAN Version](https://www.r-pkg.org/badges/version/SingleCellSignalR)](https://cran.r-project.org/package=SingleCellSignalR)
 [![CRAN Downloads](https://cranlogs.r-pkg.org/badges/SingleCellSignalR)](https://cran.r-project.org/package=SingleCellSignalR)
@@ -8,7 +8,9 @@
 
 ## Overview
 
-SingleCellSignalR is used to infer ligand-receptor (L-R) interactions from single cells experiments.
+SingleCellSignalR is used to infer ligand-receptor (L-R) interactions from single cells experiments. This is the
+branch of the repository dedicated to version 1 of SingleCellSignalR. It has been replaced by version 2. This
+branch allows to easily install or retreive version 1 if needed.
 
 ## Installation
 
