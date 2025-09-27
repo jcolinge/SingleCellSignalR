@@ -756,13 +756,12 @@ setMethod("performInferences", "SCSRNet", function(obj,
 
     # generate the differential tables and comparisons
     if (verbose) {
-        cat("Computing differential expression tables:\n",
-            file=stderr())
+        message("Computing differential expression tables:")
     }
     pop <- k <- NULL
     for (pop in selected.populations) {
         if (verbose) {
-            cat(" ", pop, "\n", file=stderr())
+            message(" ", pop)
         }
         if (!is.null(funDiffExpr)) {
             bsrcc <- funDiffExpr(obj, pop)
@@ -818,7 +817,7 @@ setMethod("performInferences", "SCSRNet", function(obj,
     bsrdmComp(obj) <- BulkSignalR::addClusterComp(bsrdmComp(obj), 
     bsrcc, "scsr-universal")
     if (verbose) {
-        cat("Computing universal inference\n", file=stderr())
+        message("Computing universal inference")
     }
     
     bsrinf.u <- BulkSignalR::BSRInferenceComp(bsrdmComp(obj),
@@ -834,7 +833,7 @@ setMethod("performInferences", "SCSRNet", function(obj,
     autocrines <- list()
     if (autocrine) {
         if (verbose) {
-            cat("Computing autocrine interactions\n", file=stderr())
+            message("Computing autocrine interactions")
         }
         for (pop in selected.populations) {
             bsrcc <- BulkSignalR::comparison(bsrdmComp(obj))[[
@@ -851,8 +850,7 @@ setMethod("performInferences", "SCSRNet", function(obj,
             )
             if (is.null(bsrinf.comp)) {
                 if (verbose) {
-                    cat("  No interaction selected for", pop, "\n",
-                        file=stderr())
+                    message("  No interaction selected for", pop)
                 }
             } else {
                 autocrines <- c(autocrines, list(bsrinf.comp))
@@ -865,7 +863,7 @@ setMethod("performInferences", "SCSRNet", function(obj,
     paracrines <- list()
     if (paracrine) {
         if (verbose) {
-            cat("Computing paracrine interactions\n", file=stderr())
+            message("Computing paracrine interactions")
         }
         for (source.pop in selected.populations) {
             src.bsrcc <- BulkSignalR::comparison(bsrdmComp(obj))[[
@@ -874,7 +872,7 @@ setMethod("performInferences", "SCSRNet", function(obj,
             for (target.pop in selected.populations) {
                 if (source.pop != target.pop) {
                     # if (verbose)
-                    #   cat("  from",source.pop,"to",target.pop,"\n")
+                    #   message("  from",source.pop,"to",target.pop)
                     bsrcc <- BulkSignalR::comparison(bsrdmComp(obj))[[
                         paste0(target.pop,
                         "_vs_others")]]
@@ -890,9 +888,8 @@ setMethod("performInferences", "SCSRNet", function(obj,
                     )
                     if (is.null(bsrinf.comp)) {
                         if (verbose) {
-                            cat("  No interaction selected for",
-                                source.pop, "_vs_", target.pop, "\n",
-                                file=stderr())
+                            message("  No interaction selected for",
+                                source.pop, "_vs_", target.pop,)
                         }
                     } else {
                         paracrines <- c(paracrines, list(bsrinf.comp))

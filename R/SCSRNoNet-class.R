@@ -593,12 +593,12 @@ setMethod("performInferences", "SCSRNoNet", function(obj,
 
     # generate the differential tables and comparisons
     if (verbose) {
-        cat("Computing diffential expression tables:\n", file=stderr())
+        message("Computing diffential expression tables:")
     }
     pop <- k <- NULL
     for (pop in selected.populations) {
         if (verbose) {
-            cat(" ", pop, "\n", file=stderr())
+            message(" ", pop)
         }
         if (!is.null(funDiffExpr)) {
             bsrcc <- funDiffExpr(obj, pop)
@@ -644,8 +644,7 @@ setMethod("performInferences", "SCSRNoNet", function(obj,
     autocrines <- list()
     if (autocrine) {
         if (verbose) {
-            cat("Computing autocrine naive (network-free) interactions\n",
-                file=stderr())
+            message("Computing autocrine naive (network-free) interactions")
         }
         for (pop in selected.populations) {
             bsrcc <- BulkSignalR::comparison(bsrdmComp(obj))[[
@@ -695,8 +694,7 @@ setMethod("performInferences", "SCSRNoNet", function(obj,
     paracrines <- list()
     if (paracrine) {
         if (verbose) {
-            cat("Computing paracrine naive (network-free) interactions\n",
-                file=stderr())
+            message("Computing paracrine naive (network-free) interactions")
         }
         for (source.pop in selected.populations) {
             src.bsrcc <- BulkSignalR::comparison(bsrdmComp(obj))[[paste0(
@@ -705,7 +703,7 @@ setMethod("performInferences", "SCSRNoNet", function(obj,
             for (target.pop in selected.populations) {
                 if (source.pop != target.pop) {
                     # if (verbose)
-                    #   cat("  from",source.pop,"to",target.pop,"\n")
+                    #   message("  from",source.pop,"to",target.pop)
                     bsrcc <- BulkSignalR::comparison(bsrdmComp(obj))[[paste0(
                         target.pop, "_vs_others")]]
                     tar.s <- differentialStats(bsrcc)
