@@ -75,6 +75,10 @@ BiocManager::install("SingleCellSignalR")
 For a version history/change logs, see the [NEWS file](https://github.com/ZheFrench/SingleCellSignalR/blob/master/NEWS).
 
 
+Version 1 of SingleCellSignalR (original version as published in NAR in 2020), is still available
+from a branch of this repository names version_1.
+
+
 **SingleCellSignalR** has been successfully installed on Mac OS X, Linux, and Windows using R version 4.5.
 
 
