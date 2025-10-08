@@ -42,7 +42,8 @@ top of the ligand and the receptor expressions.
 That is, `SingleCellSignalR` Version 2 offers a lot of
 flexibility to adapt to the specifics of the data at hand. Moreover, this
 new version gives access to the many graphical functions provided with
-`BulkSignalR`.
+`BulkSignalR`. A **preprint** of our paper describing the new version
+of `SingleCellSignalR` is available [here](https://www.biorxiv.org/cgi/content/short/2025.10.05.680519v1).
 
 Technically, `SingleCellSignalR` Version 2 can be regarded as a
 wrapper to `BulkSignalR`  differential analysis classes. `BulkSignalR`
